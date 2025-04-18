@@ -22,28 +22,67 @@ public:
     }
     void EnterScope()
     {
+
+        ScopeTable *newScope = new ScopeTable(bucketSize, currentScope);
+        currentScope = newScope;
     }
     void ExitScope()
     {
+        if (currentScope == NULL)
+        {
+            cout << "No current scope" << endl;
+            return;
+        }
+        ScopeTable *temp = currentScope;
+        currentScope = currentScope->getParent();
+        delete temp;
     }
-    void Insert(string name, string type)
+    bool Insert(string name, string type)
     {
+        //assumed that the insertion would only happen if there is a scope table already defined
+        if (currentScope == NULL)
+        {
+            cout << "Error: No current scope" << endl;
+            return false;
+        }
+        bool result = currentScope->Insert(name, type);
+        if(!result )
+        {
+            cout << "Error: " << name << " already exists in the current scope" << endl;
+        }
+        return result;
     }
     bool Remove(string name)
     {
-        if (currentScope == NULL)
+        if(currentScope == NULL)
         {
+            cout << "Error: No current scope" << endl;
             return false;
         }
-        return currentScope->Delete(name);
+        bool result = currentScope->Delete(name);
+        if(!result)
+        {
+            cout << "Error: " << name << " not found in the current scope" << endl;
+        }
+        return result;
     }
     SymbolInfo *Lookup(string name)
     {
         if (currentScope == NULL)
         {
+            cout << "Error: No current scope" << endl;
             return NULL;
         }
-        return currentScope->Lookup(name);
+        ScopeTable* curr = currentScope;
+        while(curr != NULL)
+        {
+            SymbolInfo* symbol = curr->Lookup(name);
+            if(symbol != NULL)
+            {
+                return symbol;
+            }
+            curr = curr->getParent();
+        }
     }
     void PrintCurrentScopeTable()
     {

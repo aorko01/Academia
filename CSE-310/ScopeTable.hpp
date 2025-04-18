@@ -13,6 +13,7 @@ class ScopeTable
     {
         return Hash::sdbm((unsigned char*)name.c_str()) % bucketSize;
     }
+
     public:
         ScopeTable* parentScope;
         ScopeTable(int bucketSize, ScopeTable* parentScope = NULL)
@@ -35,7 +36,7 @@ class ScopeTable
             delete[] table;
         }
 
-        void Insert(string name, string type)
+        bool Insert(string name, string type)
         {
             //check if name already exists
             SymbolInfo* existingSymbol = Lookup(name);
@@ -57,6 +58,11 @@ class ScopeTable
                     }
                     temp->next = newSymbol;
                 }
+                return true;
+            }
+            else
+            {
+                return false; // Symbol already exists
             }
             
         }
@@ -99,6 +105,14 @@ class ScopeTable
                 curr = curr->next;
             }
             return false;
+        }
+        ScopeTable* getParent()
+        {
+            return parentScope;
+        }
+        void setParent(ScopeTable* parentScope)
+        {
+            this->parentScope = parentScope;
         }
         void Print()
         {
