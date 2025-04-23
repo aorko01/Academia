@@ -10,6 +10,14 @@ public:
     int k, n;
     vector<vector<int>> board;
     map<int, pair<int, int>> config;
+
+    // Default constructor
+    Board_config()
+    {
+        k = 0;
+        n = 0;
+    }
+
     Board_config(int k, vector<vector<int>> &input_board)
     {
         this->k = k;
@@ -39,7 +47,7 @@ public:
         for (auto dir : directions)
         {
             int newRow = blankRow + dir.first;
-            int newCol = blankCol + dir.second;
+            int newCol = blankCol + dir.second; // Fixed: was using blankRow instead of blankCol
             if (newRow >= 0 && newRow < k && newCol >= 0 && newCol < k)
             {
                 vector<vector<int>> newBoard = board;
@@ -118,5 +126,16 @@ public:
             }
         }
         return result;
+    }
+
+    // Add equality operator for comparison
+    bool operator==(const Board_config &other) const
+    {
+        return board == other.board;
+    }
+
+    bool operator!=(const Board_config &other) const
+    {
+        return !(*this == other);
     }
 };

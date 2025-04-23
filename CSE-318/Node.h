@@ -1,5 +1,5 @@
 #include <vector>
-#include<iostream>
+#include <iostream>
 #include "Board_config.h"
 #include "Huristic.h"
 
@@ -19,24 +19,24 @@ public:
         this->parent = parent;
     }
 
-    int get_function_cost(int heuristic_type, Board_config &target_board)
+    int get_function_cost(int heuristic_type, Board_config &target_board) const
     {
         int heuristic_cost = 0;
         if (heuristic_type == 1)
         {
-            heuristic_cost = Huristic::calculateHammingDistance(board);
+            heuristic_cost = Huristic::calculateHammingDistance(const_cast<Board_config &>(board));
         }
         else if (heuristic_type == 2)
         {
-            heuristic_cost = Huristic::calculateManhattanDistance(board);
+            heuristic_cost = Huristic::calculateManhattanDistance(const_cast<Board_config &>(board));
         }
         else if (heuristic_type == 3)
         {
-            heuristic_cost = Huristic::calculateEuclideanDistance(board);
+            heuristic_cost = Huristic::calculateEuclideanDistance(const_cast<Board_config &>(board));
         }
         else
         {
-            heuristic_cost = Huristic::calculateLinearConflict(board);
+            heuristic_cost = Huristic::calculateLinearConflict(const_cast<Board_config &>(board));
         }
         return current_cost + heuristic_cost;
     }
@@ -56,7 +56,7 @@ public:
         }
         return neighbours;
     }
-    void printNode()
+    void printNode() const
     {
         for (int i = 0; i < board.k; i++)
         {

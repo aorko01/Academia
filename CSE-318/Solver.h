@@ -3,6 +3,7 @@
 #include <functional>
 #include <unordered_set>
 #include <iostream>
+#include <stack>
 #include "Huristic.h"
 #include "Node.h"
 using namespace std;
@@ -19,13 +20,19 @@ public:
 
     void Solve(Node &start_node, Node &goal_node)
     {
-        priority_queue<Node, vector<Node>, function<bool(Node, Node)>> open_list(
-            [&goal_node, this](Node a, Node b)
-            {
-                return a.get_function_cost(this->huristic_type, goal_node.board) >
-                       b.get_function_cost(this->huristic_type, goal_node.board);
-            });
+        // Use a custom comparator for the priority queue
+        auto comparator = [&goal_node, this](const Node &a, const Node &b)
+        {
+            return a.get_function_cost(this->huristic_type, const_cast<Board_config &>(goal_node.board)) >
+                   b.get_function_cost(this->huristic_type, const_cast<Board_config &>(goal_node.board));
+        };
+
+        // Create the priority queue with the custom comparator
+        priority_queue<Node, vector<Node>, decltype(comparator)> open_list(comparator);
         unordered_set<string> closed_list;
+
+        // Create a map to store parent pointers for reconstructing the path
+        unordered_map<string, pair<Node, string>> parent_map;
 
         open_list.push(start_node);
 
@@ -39,7 +46,9 @@ public:
             open_list.pop();
             expanded++; // Increment expanded count when a node is taken from open list
 
-            if (current_node.board == goal_node.board)
+            string current_state = current_node.board.toString();
+
+            if (current_node.board.toString() == goal_node.board.toString())
             {
                 // Solution found
                 cout << "Solution found!" << endl;
@@ -50,21 +59,46 @@ public:
 
                 // Reconstruct the solution path and count steps
                 int steps = 0;
-                Node *node_ptr = &current_node;
-                // Would need to implement a way to store/track the path
-                // In the current implementation, we can't do this directly
-                // since current_node is a copy, not the actual node in memory
+                stack<Node> path;
+
+                string state = current_state;
+                while (state != start_node.board.toString())
+                {
+                    path.push(parent_map[state].first);
+                    state = parent_map[state].second; // Get the parent state
+                    steps++;
+                }
+
+                cout << "Number of steps: " << steps << endl;
+                cout << "Solution path:" << endl;
+
+                cout << "Initial state:" << endl;
+                start_node.printNode();
+                cout << endl;
+
+                int step_count = 1;
+                while (!path.empty())
+                {
+                    cout << "Step " << step_count++ << ":" << endl;
+                    path.top().printNode();
+                    cout << endl;
+                    path.pop();
+                }
 
                 return;
             }
 
-            closed_list.insert(current_node.board.toString());
+            closed_list.insert(current_state);
 
             vector<Node> neighbours = current_node.getNeighbourNodes();
             for (Node &neighbour : neighbours)
             {
-                if (closed_list.find(neighbour.board.toString()) == closed_list.end())
+                string neighbour_state = neighbour.board.toString();
+                if (closed_list.find(neighbour_state) == closed_list.end())
                 {
+                    // Store the parent information before pushing to open list
+                    parent_map[neighbour_state] = make_pair(neighbour, current_state);
+
                     open_list.push(neighbour);
                     explored++; // Increment explored count when a node is added to open list
                 }
