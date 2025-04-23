@@ -1,4 +1,5 @@
-#include <bits/stdc++.h>
+#include <vector>
+#include <cmath> // for sqrt and pow
 #include "Board_config.h"
 using namespace std;
 

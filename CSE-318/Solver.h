@@ -1,4 +1,8 @@
-#include <bits/stdc++.h>
+#include <queue>
+#include <vector>
+#include <functional>
+#include <unordered_set>
+#include <iostream>
 #include "Huristic.h"
 #include "Node.h"
 using namespace std;
@@ -31,6 +35,7 @@ public:
         while (!open_list.empty())
         {
             Node current_node = open_list.top();
+            current_node.printNode();
             open_list.pop();
             expanded++; // Increment expanded count when a node is taken from open list
 

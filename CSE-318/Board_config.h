@@ -1,4 +1,7 @@
-#include <bits/stdc++.h>
+#include <vector>
+#include <map>
+#include <utility> // for pair
+#include <string>
 using namespace std;
 
 class Board_config

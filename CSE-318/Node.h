@@ -1,4 +1,5 @@
-#include <bits/stdc++.h>
+#include <vector>
+#include<iostream>
 #include "Board_config.h"
 #include "Huristic.h"
 
@@ -54,5 +55,16 @@ public:
             neighbours.push_back(Node(neighbour_board, current_cost + 1, this));
         }
         return neighbours;
+    }
+    void printNode()
+    {
+        for (int i = 0; i < board.k; i++)
+        {
+            for (int j = 0; j < board.k; j++)
+            {
+                cout << board.board[i][j] << " ";
+            }
+            cout << endl;
+        }
     }
 };
