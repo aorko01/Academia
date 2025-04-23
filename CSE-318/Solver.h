@@ -1,11 +1,16 @@
+#ifndef SOLVER_H
+#define SOLVER_H
+
 #include <queue>
 #include <vector>
 #include <functional>
 #include <unordered_set>
 #include <iostream>
 #include <stack>
-#include "Huristic.h"
+#include <unordered_map>
 #include "Node.h"
+#include "Board_config.h"
+
 using namespace std;
 
 class Solver
@@ -24,7 +29,7 @@ public:
         auto comparator = [&goal_node, this](const Node &a, const Node &b)
         {
             return a.get_function_cost(this->huristic_type, const_cast<Board_config &>(goal_node.board)) >
-                   b.get_function_cost(this->huristic_type, const_cast<Board_config &>(goal_node.board));
+                b.get_function_cost(this->huristic_type, const_cast<Board_config &>(goal_node.board));
         };
 
         // Create the priority queue with the custom comparator
@@ -42,7 +47,7 @@ public:
         while (!open_list.empty())
         {
             Node current_node = open_list.top();
-            current_node.printNode();
+            // current_node.printNode();
             open_list.pop();
             expanded++; // Increment expanded count when a node is taken from open list
 
@@ -110,3 +115,5 @@ public:
         cout << "Number of Expanded Nodes = " << expanded << endl;
     }
 };
+
+#endif // SOLVER_H

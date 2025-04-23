@@ -1,3 +1,6 @@
+#ifndef BOARD_CONFIG_H
+#define BOARD_CONFIG_H
+
 #include <vector>
 #include <map>
 #include <utility> // for pair
@@ -139,3 +142,5 @@ public:
         return !(*this == other);
     }
 };
+
+#endif // BOARD_CONFIG_H

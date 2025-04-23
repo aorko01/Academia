@@ -2,6 +2,8 @@
 #include "Solver.h"
 #include "Board_config.h"
 #include "Node.h"
+#include "Huristic.h"
+
 using namespace std;
 
 int main()

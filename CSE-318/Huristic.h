@@ -1,6 +1,9 @@
+#ifndef HURISTIC_H
+#define HURISTIC_H
+
 #include <vector>
-#include <cmath> // for sqrt and pow
-#include "Board_config.h"
+#include <cmath>          // for sqrt and pow
+#include "Board_config.h" // Added this include
 using namespace std;
 
 class Huristic
@@ -147,3 +150,5 @@ public:
         return linearConflict;
     }
 };
+
+#endif // HURISTIC_H

@@ -1,3 +1,6 @@
+#ifndef NODE_H
+#define NODE_H
+
 #include <vector>
 #include <iostream>
 #include "Board_config.h"
@@ -11,6 +14,9 @@ public:
     Board_config board;
     int current_cost;
     Node *parent;
+
+    // Adding a default constructor
+    Node() : current_cost(0), parent(nullptr) {}
 
     Node(Board_config &board, int current_cost, Node *parent)
     {
@@ -68,3 +74,5 @@ public:
         }
     }
 };
+
+#endif // NODE_H
