@@ -1,3 +1,6 @@
+#ifndef SYMBOL_TABLE_HPP
+#define SYMBOL_TABLE_HPP
+
 #include <iostream>
 #include <string>
 
@@ -22,8 +25,8 @@ public:
     }
     void EnterScope()
     {
-
         ScopeTable *newScope = new ScopeTable(bucketSize, currentScope);
+        cout << "\tScopeTable# " << newScope->getId() << " created" << endl;
         currentScope = newScope;
     }
     void ExitScope()
@@ -33,36 +36,49 @@ public:
             cout << "No current scope" << endl;
             return;
         }
+        int exitingId = currentScope->getId();
         ScopeTable *temp = currentScope;
         currentScope = currentScope->getParent();
         delete temp;
+        cout << "\tScopeTable# " << exitingId << " removed" << endl;
     }
     bool Insert(string name, string type)
     {
-        //assumed that the insertion would only happen if there is a scope table already defined
+        // assumed that the insertion would only happen if there is a scope table already defined
         if (currentScope == NULL)
         {
             cout << "Error: No current scope" << endl;
             return false;
         }
-        bool result = currentScope->Insert(name, type);
-        if(!result )
+        auto [result, position] = currentScope->Insert(name, type);
+        if (!result)
         {
-            cout << "Error: " << name << " already exists in the current scope" << endl;
+            cout << "\t'" << name << "' already exists in the current ScopeTable" << endl;
+        }
+        else
+        {
+            cout << "\tInserted in ScopeTable# " << currentScope->getId()
+                 << " at position " << position.first << ", " << position.second << endl;
         }
         return result;
     }
     bool Remove(string name)
     {
-        if(currentScope == NULL)
+        if (currentScope == NULL)
         {
             cout << "Error: No current scope" << endl;
             return false;
         }
         bool result = currentScope->Delete(name);
-        if(!result)
+        if (!result)
         {
-            cout << "Error: " << name << " not found in the current scope" << endl;
+            cout << "\tNot found in the current ScopeTable" << endl;
+        }
+        else
+        {
+            auto [symbol, position] = currentScope->Lookup(name);
+            cout << "\tDeleted '" << name << "' from ScopeTable# " << currentScope->getId()
+                 << " at position " << position.first << ", " << position.second << endl;
         }
         return result;
     }
@@ -73,16 +89,20 @@ public:
             cout << "Error: No current scope" << endl;
             return NULL;
         }
-        ScopeTable* curr = currentScope;
-        while(curr != NULL)
+        ScopeTable *curr = currentScope;
+        while (curr != NULL)
         {
-            SymbolInfo* symbol = curr->Lookup(name);
-            if(symbol != NULL)
+            auto [symbol, position] = curr->Lookup(name);
+            if (symbol != NULL)
             {
+                cout << "\t'" << name << "' found in ScopeTable# " << curr->getId()
+                     << " at position " << position.first << ", " << position.second << endl;
                 return symbol;
             }
             curr = curr->getParent();
         }
+        cout << "\t'" << name << "' not found in any of the ScopeTables" << endl;
+        return NULL;
     }
     void PrintCurrentScopeTable()
     {
@@ -100,11 +120,33 @@ public:
             cout << "No current scope" << endl;
             return;
         }
+        
+        // Get all scopes in order and count them
+        int scopeCount = 0;
         ScopeTable *temp = currentScope;
         while (temp != NULL)
         {
-            temp->Print();
+            scopeCount++;
             temp = temp->getParent();
+        }
+        
+        // Print scopes with proper indentation
+        temp = currentScope;
+        int currentLevel = 0;
+        while (temp != NULL)
+        {
+            string indentation;
+            // Apply proper indentation based on level
+            for (int i = 0; i < currentLevel; i++)
+            {
+                indentation += "\t";
+            }
+            
+            temp->Print(indentation);
+            temp = temp->getParent();
+            currentLevel++;
         }
     }
 };
+
+#endif // SYMBOL_TABLE_HPP

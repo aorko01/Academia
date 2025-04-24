@@ -1,23 +1,27 @@
-#include<iostream>
-#include<string>
+#ifndef SYMBOL_INFO_HPP
+#define SYMBOL_INFO_HPP
+
+#include <iostream>
+#include <string>
 
 using namespace std;
 
 class SymbolInfo
 {
 	string name, type;
+
 public:
 	SymbolInfo *next;
-	SymbolInfo(string name, string type, SymbolInfo* next = NULL)
+	SymbolInfo(string name, string type, SymbolInfo *next = NULL)
 	{
 		this->name = name;
 		this->type = type;
 		this->next = next;
 	}
-	~SymbolInfo()   
+	~SymbolInfo()
 	{
-	    cout<<"Destructor called";
-		if(next != NULL) delete next;  
+		if (next != NULL)
+			delete next;
 	}
 	string get_name()
 	{
@@ -36,3 +40,5 @@ public:
 		this->type = type;
 	}
 };
+
+#endif // SYMBOL_INFO_HPP

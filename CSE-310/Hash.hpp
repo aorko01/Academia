@@ -1,5 +1,8 @@
-#include<iostream>
-#include<string>
+#ifndef HASH_HPP
+#define HASH_HPP
+
+#include <iostream>
+#include <string>
 using namespace std;
 
 class Hash
@@ -16,3 +19,5 @@ public:
         return hash;
     }
 };
+
+#endif // HASH_HPP
