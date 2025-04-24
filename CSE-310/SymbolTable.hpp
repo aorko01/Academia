@@ -69,17 +69,23 @@ public:
             cout << "Error: No current scope" << endl;
             return false;
         }
-        bool result = currentScope->Delete(name);
-        if (!result)
+
+        // First look up the symbol to get its position
+        auto [symbol, position] = currentScope->Lookup(name);
+        if (symbol == NULL)
         {
             cout << "\tNot found in the current ScopeTable" << endl;
+            return false;
         }
-        else
+
+        // Now delete the symbol
+        bool result = currentScope->Delete(name);
+        if (result)
         {
-            auto [symbol, position] = currentScope->Lookup(name);
             cout << "\tDeleted '" << name << "' from ScopeTable# " << currentScope->getId()
                  << " at position " << position.first << ", " << position.second << endl;
         }
+
         return result;
     }
     SymbolInfo *Lookup(string name)
@@ -120,7 +126,7 @@ public:
             cout << "No current scope" << endl;
             return;
         }
-        
+
         // Get all scopes in order and count them
         int scopeCount = 0;
         ScopeTable *temp = currentScope;
@@ -129,7 +135,7 @@ public:
             scopeCount++;
             temp = temp->getParent();
         }
-        
+
         // Print scopes with proper indentation
         temp = currentScope;
         int currentLevel = 0;
@@ -141,7 +147,7 @@ public:
             {
                 indentation += "\t";
             }
-            
+
             temp->Print(indentation);
             temp = temp->getParent();
             currentLevel++;
