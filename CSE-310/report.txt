@@ -1,3 +1,4 @@
+	Hash function used: SDBM
 	Total collisions: 4
 	Total scope tables created: 8
 	Collision rate: 0.0714286

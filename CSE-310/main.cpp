@@ -170,22 +170,60 @@ void insert(string words[], int num_of_words, SymbolTable *st)
 int main()
 {
     int bucket_size;
+    int hash_choice;
 
-    // Redirect input and output
-    READ("sample_input.txt");
-    WRITE("output.txt");
-
-    // Taking input from file
+    // First read bucket_size from sample_input.txt without output redirection
+    freopen("sample_input.txt", "r", stdin);
     cin >> bucket_size;
 
-    // Create a symbol table with the given bucket size
-    SymbolTable *st = new SymbolTable(bucket_size);
+    // Read hash function choice from terminal
+    freopen("/dev/tty", "r", stdin);
+    cout << "Select hash function:" << endl;
+    cout << "  1. SDBM (default)" << endl;
+    cout << "  2. DJB2" << endl;
+    cout << "  3. FNV-1a" << endl;
+    cout << "Enter your choice (1-3): ";
+    cin >> hash_choice;
 
-    // Enter the first scope
-    st->EnterScope();
+    // Validate hash choice
+    if (hash_choice < 1 || hash_choice > 3)
+    {
+        cout << "Invalid choice. Using default (SDBM)." << endl;
+        hash_choice = 1;
+    }
+
+    cout << "Using hash function: ";
+    switch (hash_choice)
+    {
+    case 1:
+        cout << "SDBM";
+        break;
+    case 2:
+        cout << "DJB2";
+        break;
+    case 3:
+        cout << "FNV-1a";
+        break;
+    }
+    cout << endl
+         << endl;
+
+    // Now set up redirections for the actual program execution
+    freopen("sample_input.txt", "r", stdin);
+    freopen("output.txt", "w", stdout);
+
+    // Skip the first line (bucket_size) as we already read it
+    string dummy;
+    getline(cin, dummy);
+
+    // Create a symbol table with the given bucket size and hash function choice
+    SymbolTable *st = new SymbolTable(bucket_size, hash_choice);
 
     string str;
     int cmd = 1;
+
+    // Enter the first scope
+    st->EnterScope();
 
     while (true)
     {
@@ -277,6 +315,7 @@ int main()
 
     // Open report.txt file to write collision statistics
     freopen("report.txt", "w", stdout);
+    cout << "\tHash function used: " << st->getHashFunctionName() << endl;
     cout << "\tTotal collisions: " << totalCollisions << endl;
     cout << "\tTotal scope tables created: " << totalScopesCreated << endl;
     cout << "\tCollision rate: " << collisionRate << endl;

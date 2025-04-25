@@ -15,20 +15,23 @@ class ScopeTable
     int id;             // Unique identifier for each scope table
     static int next_id; // Static counter to generate unique IDs
     int collisions;     // Counter for hash collisions
+    int hashChoice;     // Selected hash function (1, 2, or 3)
 
     int getIndex(string name)
     {
-        return Hash::sdbm((const unsigned char *)name.c_str(), bucketSize);
+        // Use the selected hash function
+        return Hash::hash((const unsigned char *)name.c_str(), bucketSize, hashChoice);
     }
 
 public:
     ScopeTable *parentScope;
-    ScopeTable(int bucketSize, ScopeTable *parentScope = NULL)
+    ScopeTable(int bucketSize, ScopeTable *parentScope = NULL, int hashChoice = 1)
     {
         this->bucketSize = bucketSize;
         this->parentScope = parentScope;
-        this->id = next_id++; // Assign and increment the ID
-        this->collisions = 0; // Initialize collision counter
+        this->id = next_id++;          // Assign and increment the ID
+        this->collisions = 0;          // Initialize collision counter
+        this->hashChoice = hashChoice; // Store the selected hash function
         table = new SymbolInfo *[bucketSize];
         for (int i = 0; i < bucketSize; i++)
             table[i] = NULL;

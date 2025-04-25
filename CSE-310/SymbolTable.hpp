@@ -14,11 +14,13 @@ class SymbolTable
     int bucketSize;
     int totalCollisions;    // Track total collisions across all scopes
     int totalScopesCreated; // Track total number of scope tables created
+    int hashChoice;         // Selected hash function (1, 2, or 3)
 
 public:
-    SymbolTable(int bucketSize)
+    SymbolTable(int bucketSize, int hashChoice = 1)
     {
         this->bucketSize = bucketSize;
+        this->hashChoice = hashChoice;
         currentScope = NULL;
         totalCollisions = 0;    // Initialize total collisions to 0
         totalScopesCreated = 0; // Initialize total scopes created to 0
@@ -35,7 +37,7 @@ public:
     }
     void EnterScope()
     {
-        ScopeTable *newScope = new ScopeTable(bucketSize, currentScope);
+        ScopeTable *newScope = new ScopeTable(bucketSize, currentScope, hashChoice);
         cout << "\tScopeTable# " << newScope->getId() << " created" << endl;
         currentScope = newScope;
         totalScopesCreated++; // Increment the counter when a new scope is created
@@ -192,6 +194,28 @@ public:
     int getTotalScopesCreated() const
     {
         return totalScopesCreated;
+    }
+
+    // Getter for hash function choice
+    int getHashChoice() const
+    {
+        return hashChoice;
+    }
+
+    // String representation of the hash function name
+    string getHashFunctionName() const
+    {
+        switch (hashChoice)
+        {
+        case 1:
+            return "SDBM";
+        case 2:
+            return "DJB2";
+        case 3:
+            return "FNV-1a";
+        default:
+            return "Unknown";
+        }
     }
 };
 
