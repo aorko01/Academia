@@ -142,7 +142,7 @@ public:
         cout << indent << "ScopeTable# " << id << endl;
         for (int i = 0; i < bucketSize; i++)
         {
-            cout << indent << "\t" << i + 1 << "--> ";
+            cout << indent << i + 1 << "--> ";
             SymbolInfo *curr = table[i];
             while (curr != NULL)
             {

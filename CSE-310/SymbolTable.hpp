@@ -150,7 +150,7 @@ public:
         int currentLevel = 0;
         while (temp != NULL)
         {
-            string indentation;
+            string indentation = "\t";
             // Apply proper indentation based on level
             for (int i = 0; i < currentLevel; i++)
             {
@@ -161,6 +161,16 @@ public:
             temp = temp->getParent();
             currentLevel++;
         }
+    }
+
+    // Get the ID of the current scope table (or 0 if there is none)
+    int getCurrentScopeId()
+    {
+        if (currentScope == NULL)
+        {
+            return 0;
+        }
+        return currentScope->getId();
     }
 };
 

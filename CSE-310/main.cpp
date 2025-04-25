@@ -242,7 +242,15 @@ int main()
         }
         else if (words[0] == "E")
         {
-            exit_scope_table(words, num_words, st);
+            // Check if this is the root scope (ID 1)
+            if (st->getCurrentScopeId() == 1)
+            {
+                cout << "\tCannot delete the root scope (ID 1)" << endl;
+            }
+            else
+            {
+                exit_scope_table(words, num_words, st);
+            }
         }
         else
         {
@@ -253,7 +261,13 @@ int main()
         cmd++;
     }
 
-    cout << "Program terminated.\n";
+    // Instead of just printing "Program terminated", exit all remaining scope tables
+    // and print removal messages for each one
+    while (st->getCurrentScopeId() > 0)
+    {
+        st->ExitScope(); // This will print the appropriate removal message
+    }
+
     delete st;
     return 0;
 }
