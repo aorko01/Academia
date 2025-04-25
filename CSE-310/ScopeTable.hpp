@@ -12,14 +12,13 @@ class ScopeTable
 {
     int bucketSize;
     SymbolInfo **table;
-    int id;             // Unique identifier for each scope table
-    static int next_id; // Static counter to generate unique IDs
-    int collisions;     // Counter for hash collisions
-    int hashChoice;     // Selected hash function (1, 2, or 3)
+    int id;
+    static int next_id;
+    int collisions;
+    int hashChoice;
 
     int getIndex(string name)
     {
-        // Use the selected hash function
         return Hash::hash((const unsigned char *)name.c_str(), bucketSize, hashChoice);
     }
 
@@ -29,9 +28,9 @@ public:
     {
         this->bucketSize = bucketSize;
         this->parentScope = parentScope;
-        this->id = next_id++;          // Assign and increment the ID
-        this->collisions = 0;          // Initialize collision counter
-        this->hashChoice = hashChoice; // Store the selected hash function
+        this->id = next_id++;
+        this->collisions = 0;
+        this->hashChoice = hashChoice;
         table = new SymbolInfo *[bucketSize];
         for (int i = 0; i < bucketSize; i++)
             table[i] = NULL;
@@ -45,7 +44,7 @@ public:
             {
                 SymbolInfo *temp = current;
                 current = current->next;
-                delete temp; // Delete nodes one by one
+                delete temp;
             }
         }
         delete[] table;
@@ -56,17 +55,14 @@ public:
         return id;
     }
 
-    // Return pair of <success, position> where position is pair of <bucket, chain position>
     pair<bool, pair<int, int>> Insert(string name, string type)
     {
-        // check if name already exists
         SymbolInfo *existingSymbol = Lookup(name).first;
         if (existingSymbol == NULL)
         {
-            // Insert new symbol
             int index = getIndex(name);
             SymbolInfo *newSymbol = new SymbolInfo(name, type);
-            int position = 1; // Position in chain (1-indexed)
+            int position = 1;
 
             if (table[index] == NULL)
             {
@@ -74,7 +70,6 @@ public:
             }
             else
             {
-                // Increment collision counter when there's already an item in this bucket
                 collisions++;
 
                 SymbolInfo *temp = table[index];
@@ -86,15 +81,14 @@ public:
                 }
                 temp->next = newSymbol;
             }
-            return {true, {index + 1, position}}; // Return 1-indexed positions
+            return {true, {index + 1, position}};
         }
         else
         {
-            return {false, {0, 0}}; // Symbol already exists
+            return {false, {0, 0}};
         }
     }
 
-    // Modified to return pair of SymbolInfo* and position (bucket, chain position)
     pair<SymbolInfo *, pair<int, int>> Lookup(string name)
     {
         int index = getIndex(name);
@@ -104,7 +98,7 @@ public:
         {
             if (curr->get_name() == name)
             {
-                return {curr, {index + 1, position}}; // Return 1-indexed positions
+                return {curr, {index + 1, position}};
             }
             curr = curr->next;
             position++;
@@ -161,14 +155,12 @@ public:
         }
     }
 
-    // Getter for collision count
     int getCollisions() const
     {
         return collisions;
     }
 };
 
-// Initialize the static counter
 int ScopeTable::next_id = 1;
 
-#endif // SCOPE_TABLE_HPP
+#endif

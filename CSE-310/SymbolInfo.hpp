@@ -39,4 +39,4 @@ public:
 	}
 };
 
-#endif // SYMBOL_INFO_HPP
+#endif

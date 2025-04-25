@@ -10,13 +10,11 @@ using namespace std;
 #define READ(x) freopen(x, "r", stdin);
 #define WRITE(x) freopen(x, "w", stdout);
 
-// Hash function wrapper to match the expected format
 unsigned SDBMHash(string s, unsigned int n)
 {
     return Hash::sdbm((unsigned char *)s.c_str(), n);
 }
 
-// Split a string into words
 int split(const string &s, string words[], int max_words)
 {
     int count = 0;
@@ -70,7 +68,6 @@ void lookup(string words[], int num_of_words, SymbolTable *st)
 
     string name = words[1];
     SymbolInfo *symbol = st->Lookup(name);
-    // The output is already displayed by the Lookup function
 }
 
 void delete_symbol(string words[], int num_of_words, SymbolTable *st)
@@ -83,8 +80,6 @@ void delete_symbol(string words[], int num_of_words, SymbolTable *st)
 
     string name = words[1];
     bool success = st->Remove(name);
-
-    // No need for additional output here since the SymbolTable class already handles it
 }
 
 void print(string words[], int num_of_words, SymbolTable *st)
@@ -172,11 +167,9 @@ int main()
     int bucket_size;
     int hash_choice;
 
-    // First read bucket_size from sample_input.txt without output redirection
     freopen("sample_input.txt", "r", stdin);
     cin >> bucket_size;
 
-    // Read hash function choice from terminal
     freopen("/dev/tty", "r", stdin);
     cout << "Select hash function:" << endl;
     cout << "  1. SDBM (default)" << endl;
@@ -185,7 +178,6 @@ int main()
     cout << "Enter your choice (1-3): ";
     cin >> hash_choice;
 
-    // Validate hash choice
     if (hash_choice < 1 || hash_choice > 3)
     {
         cout << "Invalid choice. Using default (SDBM)." << endl;
@@ -208,21 +200,17 @@ int main()
     cout << endl
          << endl;
 
-    // Now set up redirections for the actual program execution
     freopen("sample_input.txt", "r", stdin);
     freopen("output.txt", "w", stdout);
 
-    // Skip the first line (bucket_size) as we already read it
     string dummy;
     getline(cin, dummy);
 
-    // Create a symbol table with the given bucket size and hash function choice
     SymbolTable *st = new SymbolTable(bucket_size, hash_choice);
 
     string str;
     int cmd = 1;
 
-    // Enter the first scope
     st->EnterScope();
 
     while (true)
@@ -245,7 +233,6 @@ int main()
         }
         cout << endl;
 
-        // Check for quit command
         if (str == "Q")
         {
             break;
@@ -254,7 +241,6 @@ int main()
         if (num_words == 0)
             continue;
 
-        // Process commands
         if (words[0] == "I")
         {
             insert(words, num_words, st);
@@ -277,7 +263,6 @@ int main()
         }
         else if (words[0] == "E")
         {
-            // Check if this is the root scope (ID 1)
             if (st->getCurrentScopeId() == 1)
             {
                 cout << "\tCannot delete the root scope (ID 1)" << endl;
@@ -296,14 +281,11 @@ int main()
         cmd++;
     }
 
-    // Instead of just printing "Program terminated", exit all remaining scope tables
-    // and print removal messages for each one
     while (st->getCurrentScopeId() > 0)
     {
-        st->ExitScope(); // This will print the appropriate removal message
+        st->ExitScope();
     }
 
-    // Store the collision statistics
     int totalCollisions = st->getTotalCollisions();
     int totalScopesCreated = st->getTotalScopesCreated();
     double collisionRate = 0;
@@ -313,7 +295,6 @@ int main()
                         (bucket_size * totalScopesCreated);
     }
 
-    // Open report.txt file to write collision statistics
     freopen("report.txt", "w", stdout);
     cout << "\tHash function used: " << st->getHashFunctionName() << endl;
     cout << "\tTotal collisions: " << totalCollisions << endl;
