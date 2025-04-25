@@ -20,8 +20,6 @@ public:
 	}
 	~SymbolInfo()
 	{
-		if (next != NULL)
-			delete next;
 	}
 	string get_name()
 	{

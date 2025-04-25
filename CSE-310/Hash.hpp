@@ -8,13 +8,16 @@ using namespace std;
 class Hash
 {
 public:
-    static unsigned long sdbm(unsigned char *str)
+    static unsigned int sdbm(const unsigned char *str, unsigned int num_buckets)
     {
-        unsigned long hash = 0;
-        int c;
+        string cpp_str((const char *)str);
+        unsigned int hash = 0;
+        unsigned int len = cpp_str.length();
 
-        while ((c = *str++))
-            hash = c + (hash << 6) + (hash << 16) - hash;
+        for (unsigned int i = 0; i < len; i++)
+        {
+            hash = ((cpp_str[i]) + (hash << 6) + (hash << 16) - hash) % num_buckets;
+        }
 
         return hash;
     }

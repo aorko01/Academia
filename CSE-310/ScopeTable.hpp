@@ -17,7 +17,7 @@ class ScopeTable
 
     int getIndex(string name)
     {
-        return Hash::sdbm((unsigned char *)name.c_str()) % bucketSize;
+        return Hash::sdbm((const unsigned char *)name.c_str(), bucketSize);
     }
 
 public:
@@ -35,9 +35,12 @@ public:
     {
         for (int i = 0; i < bucketSize; i++)
         {
-            if (table[i] != NULL)
+            SymbolInfo *current = table[i];
+            while (current != NULL)
             {
-                delete table[i];
+                SymbolInfo *temp = current;
+                current = current->next;
+                delete temp; // Delete nodes one by one
             }
         }
         delete[] table;

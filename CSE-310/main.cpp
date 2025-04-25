@@ -13,7 +13,7 @@ using namespace std;
 // Hash function wrapper to match the expected format
 unsigned SDBMHash(string s, unsigned int n)
 {
-    return Hash::sdbm((unsigned char *)s.c_str()) % n;
+    return Hash::sdbm((unsigned char *)s.c_str(), n);
 }
 
 // Split a string into words
