@@ -214,7 +214,9 @@ int main()
 
         // Check for quit command
         if (str == "Q")
+        {
             break;
+        }
 
         if (num_words == 0)
             continue;
@@ -266,6 +268,21 @@ int main()
     while (st->getCurrentScopeId() > 0)
     {
         st->ExitScope(); // This will print the appropriate removal message
+    }
+
+    cout << "\tTotal collisions: " << st->getTotalCollisions() << endl;
+    cout << "\tTotal scope tables created: " << st->getTotalScopesCreated() << endl;
+
+    // Calculate and print collision rate
+    if (st->getTotalScopesCreated() > 0)
+    {
+        double collisionRate = static_cast<double>(st->getTotalCollisions()) /
+                               (bucket_size * st->getTotalScopesCreated());
+        cout << "\tCollision rate: " << collisionRate << endl;
+    }
+    else
+    {
+        cout << "\tCollision rate: 0" << endl;
     }
 
     delete st;

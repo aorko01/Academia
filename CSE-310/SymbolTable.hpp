@@ -12,12 +12,16 @@ class SymbolTable
 {
     ScopeTable *currentScope;
     int bucketSize;
+    int totalCollisions;    // Track total collisions across all scopes
+    int totalScopesCreated; // Track total number of scope tables created
 
 public:
     SymbolTable(int bucketSize)
     {
         this->bucketSize = bucketSize;
         currentScope = NULL;
+        totalCollisions = 0;    // Initialize total collisions to 0
+        totalScopesCreated = 0; // Initialize total scopes created to 0
     }
     ~SymbolTable()
     {
@@ -34,6 +38,7 @@ public:
         ScopeTable *newScope = new ScopeTable(bucketSize, currentScope);
         cout << "\tScopeTable# " << newScope->getId() << " created" << endl;
         currentScope = newScope;
+        totalScopesCreated++; // Increment the counter when a new scope is created
     }
     void ExitScope()
     {
@@ -44,6 +49,10 @@ public:
         }
         int exitingId = currentScope->getId();
         ScopeTable *temp = currentScope;
+
+        // Update total collisions before deleting the scope
+        totalCollisions += temp->getCollisions();
+
         currentScope = currentScope->getParent();
         delete temp;
         cout << "\tScopeTable# " << exitingId << " removed" << endl;
@@ -171,6 +180,18 @@ public:
             return 0;
         }
         return currentScope->getId();
+    }
+
+    // Getter for total collisions
+    int getTotalCollisions() const
+    {
+        return totalCollisions;
+    }
+
+    // Getter for total scopes created
+    int getTotalScopesCreated() const
+    {
+        return totalScopesCreated;
     }
 };
 

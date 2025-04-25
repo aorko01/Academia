@@ -14,6 +14,7 @@ class ScopeTable
     SymbolInfo **table;
     int id;             // Unique identifier for each scope table
     static int next_id; // Static counter to generate unique IDs
+    int collisions;     // Counter for hash collisions
 
     int getIndex(string name)
     {
@@ -27,6 +28,7 @@ public:
         this->bucketSize = bucketSize;
         this->parentScope = parentScope;
         this->id = next_id++; // Assign and increment the ID
+        this->collisions = 0; // Initialize collision counter
         table = new SymbolInfo *[bucketSize];
         for (int i = 0; i < bucketSize; i++)
             table[i] = NULL;
@@ -69,6 +71,9 @@ public:
             }
             else
             {
+                // Increment collision counter when there's already an item in this bucket
+                collisions++;
+
                 SymbolInfo *temp = table[index];
                 position++;
                 while (temp->next != NULL)
@@ -151,6 +156,12 @@ public:
             }
             cout << endl;
         }
+    }
+
+    // Getter for collision count
+    int getCollisions() const
+    {
+        return collisions;
     }
 };
 
