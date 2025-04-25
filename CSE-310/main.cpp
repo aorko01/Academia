@@ -171,7 +171,11 @@ int main()
 {
     int bucket_size;
 
-    // Taking input from terminal instead of files
+    // Redirect input and output
+    READ("sample_input.txt");
+    WRITE("output.txt");
+
+    // Taking input from file
     cin >> bucket_size;
 
     // Create a symbol table with the given bucket size
@@ -182,15 +186,6 @@ int main()
 
     string str;
     int cmd = 1;
-
-    // cout << "Available commands:\n";
-    // cout << "I <name> <type> [additional parameters] - Insert a symbol\n";
-    // cout << "L <name> - Lookup a symbol\n";
-    // cout << "D <name> - Delete a symbol\n";
-    // cout << "P <A/C> - Print All scopes (A) or Current scope (C)\n";
-    // cout << "S - Enter a new scope\n";
-    // cout << "E - Exit current scope\n";
-    // cout << "Q - Quit the program\n\n";
 
     while (true)
     {
@@ -270,20 +265,21 @@ int main()
         st->ExitScope(); // This will print the appropriate removal message
     }
 
-    cout << "\tTotal collisions: " << st->getTotalCollisions() << endl;
-    cout << "\tTotal scope tables created: " << st->getTotalScopesCreated() << endl;
-
-    // Calculate and print collision rate
+    // Store the collision statistics
+    int totalCollisions = st->getTotalCollisions();
+    int totalScopesCreated = st->getTotalScopesCreated();
+    double collisionRate = 0;
     if (st->getTotalScopesCreated() > 0)
     {
-        double collisionRate = static_cast<double>(st->getTotalCollisions()) /
-                               (bucket_size * st->getTotalScopesCreated());
-        cout << "\tCollision rate: " << collisionRate << endl;
+        collisionRate = static_cast<double>(totalCollisions) /
+                        (bucket_size * totalScopesCreated);
     }
-    else
-    {
-        cout << "\tCollision rate: 0" << endl;
-    }
+
+    // Open report.txt file to write collision statistics
+    freopen("report.txt", "w", stdout);
+    cout << "\tTotal collisions: " << totalCollisions << endl;
+    cout << "\tTotal scope tables created: " << totalScopesCreated << endl;
+    cout << "\tCollision rate: " << collisionRate << endl;
 
     delete st;
     return 0;
