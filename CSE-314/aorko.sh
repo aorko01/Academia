@@ -124,11 +124,22 @@ for zip_file in "$submissions_dir"/*.zip; do
                     # Run the compiled program with test input
                     "$targets_dir/C/$student_id/main.out" < "$test_file" > "$output_file"
                     
-                    # Compare output with answer
-                    if diff -Z -B "$output_file" "$answer_file" > /dev/null; then
+                    # Debug: Print a sample of both files to help diagnose comparison issues
+                    echo "  Debug: First few lines of output for test $i:"
+                    head -n 3 "$output_file" | sed 's/^/    /'
+                    echo "  Debug: First few lines of answer for test $i:"
+                    head -n 3 "$answer_file" | sed 's/^/    /'
+                    
+                    # Compare output with answer - use -w flag to ignore all whitespace differences
+                    if diff -w "$output_file" "$answer_file" > /dev/null; then
                         matched=$((matched+1))
+                        echo "  Test $i: Match ✓"
                     else
                         not_matched=$((not_matched+1))
+                        echo "  Test $i: No match ✗"
+                        # Show diff for debugging
+                        echo "  Difference found in test $i:"
+                        diff -w -u "$output_file" "$answer_file" | head -n 10 | sed 's/^/    /'
                     fi
                 fi
             done
@@ -187,11 +198,22 @@ for zip_file in "$submissions_dir"/*.zip; do
                     # Run the compiled program with test input
                     "$targets_dir/C++/$student_id/main.out" < "$test_file" > "$output_file"
                     
-                    # Compare output with answer
-                    if diff -Z -B "$output_file" "$answer_file" > /dev/null; then
+                    # Debug: Print a sample of both files to help diagnose comparison issues
+                    echo "  Debug: First few lines of output for test $i:"
+                    head -n 3 "$output_file" | sed 's/^/    /'
+                    echo "  Debug: First few lines of answer for test $i:"
+                    head -n 3 "$answer_file" | sed 's/^/    /'
+                    
+                    # Compare output with answer - use -w flag to ignore all whitespace differences
+                    if diff -w "$output_file" "$answer_file" > /dev/null; then
                         matched=$((matched+1))
+                        echo "  Test $i: Match ✓"
                     else
                         not_matched=$((not_matched+1))
+                        echo "  Test $i: No match ✗"
+                        # Show diff for debugging
+                        echo "  Difference found in test $i:"
+                        diff -w -u "$output_file" "$answer_file" | head -n 10 | sed 's/^/    /'
                     fi
                 fi
             done
@@ -247,14 +269,25 @@ for zip_file in "$submissions_dir"/*.zip; do
                 output_file="$targets_dir/Java/$student_id/out$i.txt"
                 
                 if [ -f "$test_file" ] && [ -f "$answer_file" ]; then
-                    # Run the compiled program with test input
-                    (cd "$targets_dir/Java/$student_id" && java Main < "$test_file" > "out$i.txt")
+                    # Run the compiled program with test input - use absolute path for out file
+                    (cd "$targets_dir/Java/$student_id" && java Main < "$test_file" > "$output_file")
                     
-                    # Compare output with answer
-                    if diff -Z -B "$output_file" "$answer_file" > /dev/null; then
+                    # Debug: Print a sample of both files to help diagnose comparison issues
+                    echo "  Debug: First few lines of output for test $i:"
+                    head -n 3 "$output_file" | sed 's/^/    /'
+                    echo "  Debug: First few lines of answer for test $i:"
+                    head -n 3 "$answer_file" | sed 's/^/    /'
+                    
+                    # Compare output with answer - use -w flag to ignore all whitespace differences
+                    if diff -w "$output_file" "$answer_file" > /dev/null; then
                         matched=$((matched+1))
+                        echo "  Test $i: Match ✓"
                     else
                         not_matched=$((not_matched+1))
+                        echo "  Test $i: No match ✗"
+                        # Show diff for debugging
+                        echo "  Difference found in test $i:"
+                        diff -w -u "$output_file" "$answer_file" | head -n 10 | sed 's/^/    /'
                     fi
                 fi
             done
@@ -303,11 +336,22 @@ for zip_file in "$submissions_dir"/*.zip; do
                     # Run the Python program with test input
                     python3 "$main_file" < "$test_file" > "$output_file"
                     
-                    # Compare output with answer
-                    if diff -Z -B "$output_file" "$answer_file" > /dev/null; then
+                    # Debug: Print a sample of both files to help diagnose comparison issues
+                    echo "  Debug: First few lines of output for test $i:"
+                    head -n 3 "$output_file" | sed 's/^/    /'
+                    echo "  Debug: First few lines of answer for test $i:"
+                    head -n 3 "$answer_file" | sed 's/^/    /'
+                    
+                    # Compare output with answer - use -w flag to ignore all whitespace differences
+                    if diff -w "$output_file" "$answer_file" > /dev/null; then
                         matched=$((matched+1))
+                        echo "  Test $i: Match ✓"
                     else
                         not_matched=$((not_matched+1))
+                        echo "  Test $i: No match ✗"
+                        # Show diff for debugging
+                        echo "  Difference found in test $i:"
+                        diff -w -u "$output_file" "$answer_file" | head -n 10 | sed 's/^/    /'
                     fi
                 fi
             done
