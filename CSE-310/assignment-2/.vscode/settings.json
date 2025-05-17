@@ -1,0 +1,13 @@
+{
+    "files.associations": {
+        "*.cpp": "cpp",
+        "ostream": "cpp",
+        "__hash_table": "c",
+        "array": "c",
+        "limits": "c",
+        "ratio": "c",
+        "tuple": "c",
+        "variant": "c",
+        "type_traits": "c"
+    }
+}
