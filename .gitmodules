@@ -1,3 +1,0 @@
-[submodule "CSE-314/offline-2/xv6-riscv"]
-	path = CSE-314/offline-2/xv6-riscv
-	url = https://github.com/mit-pdos/xv6-riscv
