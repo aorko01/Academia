@@ -96,15 +96,15 @@ sys_uptime(void)
 
 uint64 sys_history()
 {
+  int syscall_num;
+  uint64 stat_addr;
+  argint(0, &syscall_num);
+  argaddr(1, &stat_addr);
   struct proc *p = myproc();
-  printf("\nSyscall statistics for process %d (%s):\n", p->pid, p->name);
-  for (int i = 1; i <= NSYSCALL; i++)
-  {
-    printf("%d: %s %d %d\n",
-          i,
-          p->syscall_stats[i].syscall_name,
-          p->syscall_stats[i].count,
-          p->syscall_stats[i].accum_time);
-  }
+  if (syscall_num < 1 || syscall_num > NSYSCALL)
+    return -1;
+  struct syscall_stat stat = p->syscall_stats[syscall_num];
+  if (copyout(p->pagetable, stat_addr, (char *)&stat, sizeof(struct syscall_stat)) < 0)
+    return -1;
   return 0;
 }
