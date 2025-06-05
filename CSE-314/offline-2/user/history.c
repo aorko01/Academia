@@ -1,7 +1,7 @@
 #include "./kernel/types.h"
 #include "user.h"
 
-#define USR_NSYSCALL 22
+
 
 int main(int argc, char *argv[])
 {
@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
     // Only parent reaches here
     if (argc > 1) {
         int syscall_num = atoi(argv[1]);
-        if (syscall_num < 1 || syscall_num > USR_NSYSCALL) {
+        if (syscall_num < 1 || syscall_num > NSYSCALL) {
             printf("Invalid syscall number.\n");
             return 1;
         }
@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
         if (stat.syscall_name[0] != '\0')
             printf("%d: syscall: %s, #: %d, time: %d\n", syscall_num, stat.syscall_name, stat.count, stat.accum_time);
     } else {
-        for (int i = 1; i <= USR_NSYSCALL; i++) {
+        for (int i = 1; i <= NSYSCALL; i++) {
             struct syscall_stat stat;
             history(i, &stat);
             if (stat.syscall_name[0] != '\0')

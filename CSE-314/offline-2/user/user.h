@@ -1,4 +1,6 @@
+#define NSYSCALL 24
 struct stat;
+
 struct syscall_stat
 {
     char syscall_name[16];
@@ -6,6 +8,15 @@ struct syscall_stat
     int accum_time;
 };
 
+struct pstat
+{
+    int pid[NSYSCALL];              // the process ID of each process
+    int inuse[NSYSCALL];            // whether this slot of the process table is being used (1 or 0)
+    int inQ[NSYSCALL];              // which queue the process is currently in
+    int tickets_original[NSYSCALL]; // the number of tickets each process ori gi na ll y had
+    int tickets_current[NSYSCALL];  // the number of tickets each process currently has
+    int time_slices[NSYSCALL];      // the number of time slices each process has been scheduled
+};
 // system calls
 int fork(void);
 int exit(int) __attribute__((noreturn));
@@ -29,6 +40,8 @@ char *sbrk(int);
 int sleep(int);
 int uptime(void);
 int history(int, struct syscall_stat *);
+int settickets(int number);
+int getpinfo(struct pstat *);
 
 // ulib.c
 int stat(const char *, struct stat *);

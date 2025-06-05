@@ -5,6 +5,8 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "pstat.h"
+extern struct proc proc[];
 
 uint64
 sys_exit(void)
@@ -105,6 +107,50 @@ uint64 sys_history()
     return -1;
   struct syscall_stat stat = p->syscall_stats[syscall_num];
   if (copyout(p->pagetable, stat_addr, (char *)&stat, sizeof(struct syscall_stat)) < 0)
+    return -1;
+  return 0;
+}
+
+uint64 sys_settickets()
+{
+  int n;
+  argint(0, &n);
+  struct proc *p = myproc();
+
+  if (n < 1) {
+    acquire(&p->lock);
+    p->Original_tickets = DEFAULT_TICKET_COUNT;
+    p->Current_tickets = DEFAULT_TICKET_COUNT;
+    release(&p->lock);
+    return -1;
+  }
+
+  acquire(&p->lock);
+  p->Original_tickets = n;
+  p->Current_tickets = n;
+  release(&p->lock);
+  return 0;
+}
+uint64 sys_getpinfo()
+{
+  uint64 addr;
+  argaddr(0, &addr);
+  struct proc *p;
+  struct pstat st;
+
+  for (int i = 0; i < NPROC; i++) {
+    p = &proc[i];
+    acquire(&p->lock);
+    st.pid[i] = p->pid;
+    st.inuse[i] = (p->state != UNUSED);
+    st.inQ[i] = p->inq;
+    st.tickets_original[i] = p->Original_tickets;
+    st.tickets_current[i] = p->Current_tickets;
+    st.time_slices[i] = p->time_slices;
+    release(&p->lock);
+  }
+
+  if (copyout(myproc()->pagetable, addr, (char *)&st, sizeof(st)) < 0)
     return -1;
   return 0;
 }

@@ -110,3 +110,13 @@ history:
  li a7, SYS_history
  ecall
  ret
+.global settickets
+settickets:
+ li a7, SYS_settickets
+ ecall
+ ret
+.global getpinfo
+getpinfo:
+ li a7, SYS_getpinfo
+ ecall
+ ret

@@ -45,7 +45,7 @@ forktest(void)
 
   print("fork test\n");
   30:	00000517          	auipc	a0,0x0
-  34:	3f050513          	addi	a0,a0,1008 # 420 <history+0xe>
+  34:	40050513          	addi	a0,a0,1024 # 430 <getpinfo+0xe>
   38:	fc9ff0ef          	jal	0 <print>
 
   for(n=0; n<N; n++){
@@ -67,7 +67,7 @@ forktest(void)
   if(n == N){
     print("fork claimed to work N times!\n");
   52:	00000517          	auipc	a0,0x0
-  56:	41e50513          	addi	a0,a0,1054 # 470 <history+0x5e>
+  56:	42e50513          	addi	a0,a0,1070 # 480 <getpinfo+0x5e>
   5a:	fa7ff0ef          	jal	0 <print>
     exit(1);
   5e:	4505                	li	a0,1
@@ -80,7 +80,7 @@ forktest(void)
     if(wait(0) < 0){
       print("wait stopped early\n");
   68:	00000517          	auipc	a0,0x0
-  6c:	3c850513          	addi	a0,a0,968 # 430 <history+0x1e>
+  6c:	3d850513          	addi	a0,a0,984 # 440 <getpinfo+0x1e>
   70:	f91ff0ef          	jal	0 <print>
       exit(1);
   74:	4505                	li	a0,1
@@ -91,7 +91,7 @@ forktest(void)
   if(wait(0) != -1){
     print("wait got too many\n");
   7a:	00000517          	auipc	a0,0x0
-  7e:	3ce50513          	addi	a0,a0,974 # 448 <history+0x36>
+  7e:	3de50513          	addi	a0,a0,990 # 458 <getpinfo+0x36>
   82:	f7fff0ef          	jal	0 <print>
     exit(1);
   86:	4505                	li	a0,1
@@ -114,7 +114,7 @@ forktest(void)
 
   print("fork test OK\n");
   aa:	00000517          	auipc	a0,0x0
-  ae:	3b650513          	addi	a0,a0,950 # 460 <history+0x4e>
+  ae:	3c650513          	addi	a0,a0,966 # 470 <getpinfo+0x4e>
   b2:	f4fff0ef          	jal	0 <print>
 }
   b6:	60e2                	ld	ra,24(sp)
@@ -816,3 +816,23 @@ history:
  414:	00000073          	ecall
  ret
  418:	8082                	ret
+
+000000000000041a <settickets>:
+.global settickets
+settickets:
+ li a7, SYS_settickets
+ 41a:	48dd                	li	a7,23
+ ecall
+ 41c:	00000073          	ecall
+ ret
+ 420:	8082                	ret
+
+0000000000000422 <getpinfo>:
+.global getpinfo
+getpinfo:
+ li a7, SYS_getpinfo
+ 422:	48dd                	li	a7,23
+ ecall
+ 424:	00000073          	ecall
+ ret
+ 428:	8082                	ret

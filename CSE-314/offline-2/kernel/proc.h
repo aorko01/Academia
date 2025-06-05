@@ -87,7 +87,7 @@ struct syscall_stat
     int accum_time;
 };
 
-#define NSYSCALL 22
+#define NSYSCALL 24
 // Per-process state
 struct proc {
   struct spinlock lock;
@@ -112,4 +112,9 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
   struct syscall_stat syscall_stats[NSYSCALL+1];
+  int Original_tickets;
+  int Current_tickets;
+  int inq;
+  int time_slices;
+  int curr_runtime;
 };
