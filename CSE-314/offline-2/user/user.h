@@ -1,3 +1,4 @@
+#define NPROC 64 
 #define NSYSCALL 24
 struct stat;
 
@@ -10,12 +11,12 @@ struct syscall_stat
 
 struct pstat
 {
-    int pid[NSYSCALL];              // the process ID of each process
-    int inuse[NSYSCALL];            // whether this slot of the process table is being used (1 or 0)
-    int inQ[NSYSCALL];              // which queue the process is currently in
-    int tickets_original[NSYSCALL]; // the number of tickets each process ori gi na ll y had
-    int tickets_current[NSYSCALL];  // the number of tickets each process currently has
-    int time_slices[NSYSCALL];      // the number of time slices each process has been scheduled
+    int pid[NPROC];              // the process ID of each process
+    int inuse[NPROC];            // whether this slot of the process table is being used (1 or 0)
+    int inQ[NPROC];              // which queue the process is currently in
+    int tickets_original[NPROC]; // the number of tickets each process ori gi na ll y had
+    int tickets_current[NPROC];  // the number of tickets each process currently has
+    int time_slices[NPROC];      // the number of time slices each process has been scheduled
 };
 // system calls
 int fork(void);

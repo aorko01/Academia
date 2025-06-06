@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "*.cpp": "cpp",
-        "types.h": "c"
+        "types.h": "c",
+        "param.h": "c"
     }
 }

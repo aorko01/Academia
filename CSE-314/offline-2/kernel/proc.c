@@ -103,8 +103,7 @@ int allocpid()
 static const char *syscall_names[] = {
     0, // index 0 unused
     "fork", "exit", "wait", "pipe", "read", "kill", "exec", "fstat", "chdir", "dup", "getpid", "sbrk", "sleep", "uptime", "open", "write", "mknod", "unlink", "link", "mkdir", "close", "history",
-    "settickets","getpinfo"
-  };
+    "settickets", "getpinfo"};
 
 // Look in the process table for an UNUSED proc.
 // If found, initialize state required to run in the kernel,
@@ -133,6 +132,7 @@ found:
   p->pid = allocpid();
   p->state = USED;
 
+  // Initialize syscall stats
   for (int i = 1; i <= NSYSCALL; i++)
   {
     if (syscall_names[i])
@@ -142,6 +142,12 @@ found:
     p->syscall_stats[i].count = 0;
     p->syscall_stats[i].accum_time = 0;
   }
+
+  p->inq = 1;
+  p->curr_runtime = 0;
+  p->time_slices = 0;
+  p->Original_tickets = DEFAULT_TICKET_COUNT;
+  p->Current_tickets = DEFAULT_TICKET_COUNT;
 
   // Allocate a trapframe page.
   if ((p->trapframe = (struct trapframe *)kalloc()) == 0)
@@ -343,8 +349,8 @@ int fork(void)
 
   acquire(&np->lock);
   np->state = RUNNABLE;
-  np->Current_tickets=p->Original_tickets;
-  np->Original_tickets=p->Original_tickets;
+  np->Current_tickets = p->Original_tickets;
+  np->Original_tickets = p->Original_tickets;
   release(&np->lock);
 
   return pid;
@@ -477,7 +483,8 @@ void scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
-  static int last_idx = 0; 
+  static int last_idx = 0;
+  static int boost_timer = 0;
 
   c->proc = 0;
   for (;;)
@@ -485,35 +492,145 @@ void scheduler(void)
     intr_on();
     int found = 0;
 
-    
+    boost_timer++;
+    if (boost_timer >= BOOST_INTERVAL)
+    {
+      for (int i = 0; i < NPROC; i++)
+      {
+        struct proc *lp = &proc[i];
+        acquire(&lp->lock);
+        if (lp->state != UNUSED)
+        {
+          lp->inq = 1;
+          lp->curr_runtime = 0;
+        }
+        release(&lp->lock);
+      }
+      boost_timer = 0;
+    }
+
+    int total_tickets = 0;
+    struct proc *candidates[NPROC];
+    int candidate_tickets[NPROC];
+    int candidate_count = 0;
+
+    for (int i = 0; i < NPROC; i++)
+    {
+      struct proc *lp = &proc[i];
+      acquire(&lp->lock);
+      if (lp->state == RUNNABLE && lp->Current_tickets > 0 && lp->inq == 1)
+      {
+        candidates[candidate_count] = lp;
+        candidate_tickets[candidate_count] = lp->Current_tickets;
+        total_tickets += lp->Current_tickets;
+        candidate_count++;
+      }
+      release(&lp->lock);
+    }
+
+    if (total_tickets > 0 && candidate_count > 0)
+    {
+      static unsigned int seed = 123456789;
+      seed = (1103515245 * seed + 12345) & 0x7fffffff;
+      int winning_ticket = (seed % total_tickets) + 1;
+
+      int ticket_sum = 0;
+      struct proc *winner = 0;
+
+      for (int j = 0; j < candidate_count; j++)
+      {
+        ticket_sum += candidate_tickets[j];
+        if (ticket_sum >= winning_ticket)
+        {
+          winner = candidates[j];
+          break;
+        }
+      }
+
+      if (winner)
+      {
+        acquire(&winner->lock);
+        if (winner->state == RUNNABLE && winner->Current_tickets > 0 && winner->inq == 1)
+        {
+          winner->state = RUNNING;
+          c->proc = winner;
+          swtch(&c->context, &winner->context);
+          c->proc = 0;
+          winner->time_slices++;
+          winner->curr_runtime++;
+          if (winner->curr_runtime >= TIME_LIMIT_1)
+          {
+            winner->inq = 2;
+            winner->curr_runtime = 0;
+          }
+          if (winner->Current_tickets > 0)
+          {
+            winner->Current_tickets--;
+          }
+          found = 1;
+        }
+        release(&winner->lock);
+      }
+
+      if (found)
+        continue;
+    }
+
+    int all_zero_tickets = 1;
+    for (int i = 0; i < NPROC; i++)
+    {
+      struct proc *lp = &proc[i];
+      acquire(&lp->lock);
+      if (lp->state == RUNNABLE && lp->inq == 1 && lp->Current_tickets > 0)
+      {
+        all_zero_tickets = 0;
+        release(&lp->lock);
+        break;
+      }
+      release(&lp->lock);
+    }
+    if (all_zero_tickets)
+    {
+      for (int i = 0; i < NPROC; i++)
+      {
+        struct proc *lp = &proc[i];
+        acquire(&lp->lock);
+        if (lp->state == RUNNABLE && lp->inq == 1)
+        {
+          lp->Current_tickets = lp->Original_tickets;
+        }
+        release(&lp->lock);
+      }
+    }
+
     for (int i = 0; i < NPROC; i++)
     {
       int idx = (last_idx + i) % NPROC;
       p = &proc[idx];
+
       acquire(&p->lock);
-      if (p->state == RUNNABLE )
+      if (p->state == RUNNABLE && p->inq == 2)
       {
-        while (p->curr_runtime < TIME_LIMIT_2)
+        p->state = RUNNING;
+        c->proc = p;
+        swtch(&c->context, &p->context);
+        c->proc = 0;
+        p->time_slices++;
+        p->curr_runtime++;
+        if (p->curr_runtime >= TIME_LIMIT_2)
         {
-          p->state = RUNNING;
-          c->proc = p;
-          swtch(&c->context, &p->context);
-          c->proc = 0;
-          found = 1;
-          p->time_slices++;
-          p->curr_runtime++;
+          p->inq = 1;
+          p->curr_runtime = 0;
+          p->Current_tickets = p->Original_tickets;
         }
-        // if (p->curr_runtime < TIME_LIMIT_2)
-        // {
-        //   p->inq = 1;
-        // }
-        p->curr_runtime = 0;
-        last_idx = (idx + 1) % NPROC; // Next time, start from here
+        last_idx = (idx + 1) % NPROC;
+        found = 1;
         release(&p->lock);
-        break; // Only run one process per scheduler loop
+        break;
       }
       release(&p->lock);
     }
+
     if (found == 0)
     {
       intr_on();

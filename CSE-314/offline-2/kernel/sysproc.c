@@ -117,7 +117,8 @@ uint64 sys_settickets()
   argint(0, &n);
   struct proc *p = myproc();
 
-  if (n < 1) {
+  if (n < 1)
+  {
     acquire(&p->lock);
     p->Original_tickets = DEFAULT_TICKET_COUNT;
     p->Current_tickets = DEFAULT_TICKET_COUNT;
@@ -131,6 +132,8 @@ uint64 sys_settickets()
   release(&p->lock);
   return 0;
 }
+
+
 uint64 sys_getpinfo()
 {
   uint64 addr;
@@ -138,7 +141,8 @@ uint64 sys_getpinfo()
   struct proc *p;
   struct pstat st;
 
-  for (int i = 0; i < NPROC; i++) {
+  for (int i = 0; i < NPROC; i++)
+  {
     p = &proc[i];
     acquire(&p->lock);
     st.pid[i] = p->pid;
@@ -147,6 +151,17 @@ uint64 sys_getpinfo()
     st.tickets_original[i] = p->Original_tickets;
     st.tickets_current[i] = p->Current_tickets;
     st.time_slices[i] = p->time_slices;
+    // Debug print for each process
+    if (st.inuse[i])
+    {
+      printf("[sys_getpinfo] pid=%d inuse=%d tickets_o=%d tickets_c=%d slices=%d queue=%d\n",
+            st.pid[i],
+            st.inuse[i],
+            st.tickets_original[i],
+            st.tickets_current[i],
+            st.time_slices[i],
+            st.inQ[i]);
+    }
     release(&p->lock);
   }
 

@@ -1,1 +1,2 @@
-user/testprocinfo.o: user/testprocinfo.c kernel/types.h user/user.h
+user/testprocinfo.o: user/testprocinfo.c kernel/types.h kernel/param.h \
+ user/user.h
