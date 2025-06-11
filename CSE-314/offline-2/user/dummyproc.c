@@ -28,6 +28,7 @@ int main(int argc, char *argv[])
             printf("[dummyproc] Child loop %d\n", i);
             sleep(10);
         }
+        
         exit(0);
     } else {
         // Parent process

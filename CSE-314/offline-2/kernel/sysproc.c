@@ -134,38 +134,40 @@ uint64 sys_settickets()
 }
 
 
-uint64 sys_getpinfo()
+uint64 sys_getpinfo(void)
 {
   uint64 addr;
-  argaddr(0, &addr);
   struct proc *p;
   struct pstat st;
+  
+  // Get the user space address
+  argaddr(0, &addr);
+    
+  // Check for NULL pointer
+  if (addr == 0)
+    return -1;
 
-  for (int i = 0; i < NPROC; i++)
-  {
+  // Initialize the pstat structure
+  memset(&st, 0, sizeof(st));
+
+  // Fill the pstat structure with process information
+  for (int i = 0; i < NPROC; i++) {
     p = &proc[i];
     acquire(&p->lock);
+    
     st.pid[i] = p->pid;
     st.inuse[i] = (p->state != UNUSED);
     st.inQ[i] = p->inq;
     st.tickets_original[i] = p->Original_tickets;
     st.tickets_current[i] = p->Current_tickets;
     st.time_slices[i] = p->time_slices;
-    // Debug print for each process
-    if (st.inuse[i])
-    {
-      printf("[sys_getpinfo] pid=%d inuse=%d tickets_o=%d tickets_c=%d slices=%d queue=%d\n",
-            st.pid[i],
-            st.inuse[i],
-            st.tickets_original[i],
-            st.tickets_current[i],
-            st.time_slices[i],
-            st.inQ[i]);
-    }
+    
     release(&p->lock);
   }
 
+  // Copy the structure to user space
   if (copyout(myproc()->pagetable, addr, (char *)&st, sizeof(st)) < 0)
     return -1;
+    
   return 0;
 }

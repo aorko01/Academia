@@ -492,6 +492,7 @@ void scheduler(void)
     intr_on();
     int found = 0;
 
+    // Priority boost logic
     boost_timer++;
     if (boost_timer >= BOOST_INTERVAL)
     {
@@ -499,28 +500,31 @@ void scheduler(void)
       {
         struct proc *lp = &proc[i];
         acquire(&lp->lock);
-        if (lp->state != UNUSED)
+        if (lp->state != RUNNABLE)
         {
-          lp->inq = 1;
-          lp->curr_runtime = 0;
+          lp->inq = 1;  // Move to high priority queue
+          lp->curr_runtime = 0;  // Reset runtime
+          lp->Current_tickets = lp->Original_tickets;  // Restore tickets
         }
         release(&lp->lock);
       }
       boost_timer = 0;
     }
 
+    // Phase 1: Lottery scheduling for queue 1 (high priority)
     int total_tickets = 0;
-    struct proc *candidates[NPROC];
+    int candidate_indices[NPROC];
     int candidate_tickets[NPROC];
     int candidate_count = 0;
 
+    // First pass: collect runnable processes in queue 1 and count tickets
     for (int i = 0; i < NPROC; i++)
     {
       struct proc *lp = &proc[i];
       acquire(&lp->lock);
-      if (lp->state == RUNNABLE && lp->Current_tickets > 0 && lp->inq == 1)
+      if (lp->state == RUNNABLE && lp->inq == 1 && lp->Current_tickets > 0)
       {
-        candidates[candidate_count] = lp;
+        candidate_indices[candidate_count] = i;
         candidate_tickets[candidate_count] = lp->Current_tickets;
         total_tickets += lp->Current_tickets;
         candidate_count++;
@@ -528,45 +532,59 @@ void scheduler(void)
       release(&lp->lock);
     }
 
-    if (total_tickets > 0 && candidate_count > 0)
+    // If we have queue 1 candidates with tickets, run lottery
+    if (candidate_count > 0 && total_tickets > 0)
     {
+      // Simple PRNG
       static unsigned int seed = 123456789;
       seed = (1103515245 * seed + 12345) & 0x7fffffff;
       int winning_ticket = (seed % total_tickets) + 1;
 
       int ticket_sum = 0;
-      struct proc *winner = 0;
+      int winner_idx = -1;
 
+      // Find the winning process
       for (int j = 0; j < candidate_count; j++)
       {
         ticket_sum += candidate_tickets[j];
         if (ticket_sum >= winning_ticket)
         {
-          winner = candidates[j];
+          winner_idx = candidate_indices[j];
           break;
         }
       }
 
-      if (winner)
+      if (winner_idx >= 0)
       {
+        struct proc *winner = &proc[winner_idx];
         acquire(&winner->lock);
-        if (winner->state == RUNNABLE && winner->Current_tickets > 0 && winner->inq == 1)
+        
+        // Re-validate the process is still runnable
+        if (winner->state == RUNNABLE && winner->inq == 1 && winner->Current_tickets > 0)
         {
+          // Run the process
           winner->state = RUNNING;
           c->proc = winner;
           swtch(&c->context, &winner->context);
+          
+          // Process returned, update its state
           c->proc = 0;
           winner->time_slices++;
           winner->curr_runtime++;
+          
+          // Consume a ticket
+          if (winner->Current_tickets > 0)
+          {
+            winner->Current_tickets--;
+          }
+          
+          // Check if process should be demoted to queue 2
           if (winner->curr_runtime >= TIME_LIMIT_1)
           {
             winner->inq = 2;
             winner->curr_runtime = 0;
           }
-          if (winner->Current_tickets > 0)
-          {
-            winner->Current_tickets--;
-          }
+          
           found = 1;
         }
         release(&winner->lock);
@@ -576,20 +594,33 @@ void scheduler(void)
         continue;
     }
 
-    int all_zero_tickets = 1;
+    // Check if all queue 1 processes are out of tickets and need refill
+    int need_ticket_refill = 0;
+    int has_queue1_processes = 0;
+    
     for (int i = 0; i < NPROC; i++)
     {
       struct proc *lp = &proc[i];
       acquire(&lp->lock);
-      if (lp->state == RUNNABLE && lp->inq == 1 && lp->Current_tickets > 0)
+      if (lp->state == RUNNABLE && lp->inq == 1)
       {
-        all_zero_tickets = 0;
-        release(&lp->lock);
-        break;
+        has_queue1_processes = 1;
+        if (lp->Current_tickets == 0)
+        {
+          need_ticket_refill = 1;
+        }
+        else
+        {
+          need_ticket_refill = 0;
+          release(&lp->lock);
+          break;
+        }
       }
       release(&lp->lock);
     }
-    if (all_zero_tickets)
+    
+    // Refill tickets if all queue 1 processes are out of tickets
+    if (need_ticket_refill && has_queue1_processes)
     {
       for (int i = 0; i < NPROC; i++)
       {
@@ -601,8 +632,10 @@ void scheduler(void)
         }
         release(&lp->lock);
       }
+      continue; // Try lottery again with refilled tickets
     }
 
+    // Phase 2: Round-robin scheduling for queue 2 (low priority)
     for (int i = 0; i < NPROC; i++)
     {
       int idx = (last_idx + i) % NPROC;
@@ -611,18 +644,23 @@ void scheduler(void)
       acquire(&p->lock);
       if (p->state == RUNNABLE && p->inq == 2)
       {
+        // Run the process
         p->state = RUNNING;
         c->proc = p;
         swtch(&c->context, &p->context);
+        
+        // Process returned, update its state
         c->proc = 0;
         p->time_slices++;
         p->curr_runtime++;
-        if (p->curr_runtime >= TIME_LIMIT_2)
+        
+        // Check if process should be promoted back to queue 1
+        if (p->curr_runtime < TIME_LIMIT_2)
         {
           p->inq = 1;
-          p->curr_runtime = 0;
-          p->Current_tickets = p->Original_tickets;
+          // p->Current_tickets = p->Original_tickets;
         }
+        p->curr_runtime = 0;
         last_idx = (idx + 1) % NPROC;
         found = 1;
         release(&p->lock);
@@ -631,6 +669,7 @@ void scheduler(void)
       release(&p->lock);
     }
 
+    // If no process was found to run, wait for interrupt
     if (found == 0)
     {
       intr_on();
