@@ -41,10 +41,17 @@ options {
 }
 
 start:
-	program {
+	{
+        // Enter global scope at the beginning of parsing
+        symbolTable.EnterScope();
+    }
+    program {
         writeIntoparserLogFile("Line " + std::to_string($program.start->getLine()) + ": start : program");
         writeIntoparserLogFile("");
         writeIntoparserLogFile("Parsing completed successfully with " + std::to_string(syntaxErrorCount) + " syntax errors.");
+        
+        // Exit global scope at the end of parsing
+        symbolTable.ExitScope();
 	};
 
 program
@@ -96,6 +103,11 @@ func_declaration
 	t = type_specifier id = ID LPAREN parameter_list RPAREN sm = SEMICOLON {
         $line = $sm->getLine();
         $code = $t.text + " " + $id->getText() + "();";
+        
+        // Insert function into symbol table
+        symbolTable.Insert($id->getText(), $t.text);
+        symbolTable.PrintCurrentScopeTable();
+        
         writeIntoparserLogFile("Line " + std::to_string($line) + ": func_declaration : type_specifier ID LPAREN parameter_list RPAREN SEMICOLON");
         writeIntoparserLogFile("");
         writeIntoparserLogFile($code);
@@ -104,6 +116,11 @@ func_declaration
 	| t=type_specifier id=ID LPAREN RPAREN sm=SEMICOLON {
         $line = $sm->getLine();
         $code = $t.text + " " + $id->getText() + "();";
+        
+        // Insert function into symbol table
+        symbolTable.Insert($id->getText(), $t.text);
+        symbolTable.PrintCurrentScopeTable();
+        
         writeIntoparserLogFile("Line " + std::to_string($line) + ": func_declaration : type_specifier ID LPAREN RPAREN SEMICOLON");
         writeIntoparserLogFile("");
         writeIntoparserLogFile($code);
@@ -112,17 +129,36 @@ func_declaration
 
 func_definition
     returns[std::string code, int line]:
-	t=type_specifier id=ID LPAREN pl=parameter_list RPAREN cs=compound_statement {
+	t=type_specifier id=ID LPAREN pl=parameter_list RPAREN {
+        // Insert function into symbol table
+        symbolTable.Insert($id->getText(), $t.text);
+        symbolTable.PrintCurrentScopeTable();
+        // Enter new scope for function body
+        symbolTable.EnterScope();
+    } cs=compound_statement {
         $line = $cs.line;
         $code = $t.text + " " + $id->getText() + "(" + $pl.code + ")" + $cs.code;
+        
+        // Exit function scope
+        symbolTable.ExitScope();
+        
         writeIntoparserLogFile("Line " + std::to_string($line) + ": func_definition : type_specifier ID LPAREN parameter_list RPAREN compound_statement");
         writeIntoparserLogFile("");
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| t=type_specifier id=ID LPAREN RPAREN cs=compound_statement {
+	| t=type_specifier id=ID LPAREN RPAREN {
+        // Insert function into symbol table
+        symbolTable.Insert($id->getText(), $t.text);
+        // Enter new scope for function body
+        symbolTable.EnterScope();
+    } cs=compound_statement {
         $line = $cs.line;
         $code = $t.text + " " + $id->getText() + "()" + $cs.code;
+        
+        // Exit function scope
+        symbolTable.ExitScope();
+        
         writeIntoparserLogFile("Line " + std::to_string($line) + ": func_definition : type_specifier ID LPAREN RPAREN compound_statement");
         writeIntoparserLogFile("");
         writeIntoparserLogFile($code);
@@ -133,6 +169,11 @@ parameter_list
     returns[std::string code]:
 	pl=parameter_list COMMA t=type_specifier id=ID {
         $code = $pl.code + "," + $t.text + " " + $id->getText();
+        
+        // Insert parameter into symbol table
+        symbolTable.Insert($id->getText(), $t.text);
+        symbolTable.PrintCurrentScopeTable();
+        
         writeIntoparserLogFile("Line " + std::to_string($id->getLine()) + ": parameter_list : parameter_list COMMA type_specifier ID");
         writeIntoparserLogFile("");
         writeIntoparserLogFile($code);
@@ -147,6 +188,11 @@ parameter_list
     }
 	| t=type_specifier id=ID {
         $code = $t.text + " " + $id->getText();
+        
+        // Insert parameter into symbol table
+        symbolTable.Insert($id->getText(), $t.text);
+        symbolTable.PrintCurrentScopeTable();
+        
         writeIntoparserLogFile("Line " + std::to_string($id->getLine()) + ": parameter_list : type_specifier ID");
         writeIntoparserLogFile("");
         writeIntoparserLogFile($code);
@@ -162,17 +208,32 @@ parameter_list
 
 compound_statement 
     returns[std::string code, int line]: 
-    LCURL ss=statements rc=RCURL {
+    LCURL {
+        // Only enter new scope if this is not immediately following a function definition
+        // (function definitions already create their own scope)
+        symbolTable.EnterScope();
+    } ss=statements rc=RCURL {
         $line = $rc->getLine();
         $code = "{\n" + $ss.code + "\n}";
+        
+        // Exit compound statement scope
+        symbolTable.ExitScope();
+        
         writeIntoparserLogFile("Line " + std::to_string($line) + ": compound_statement : LCURL statements RCURL");
         writeIntoparserLogFile("");
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-    | LCURL rc=RCURL {
+    | LCURL {
+        // Only enter new scope if this is not immediately following a function definition
+        symbolTable.EnterScope();
+    } rc=RCURL {
         $line = $rc->getLine();
         $code = "{\n}";
+        
+        // Exit compound statement scope
+        symbolTable.ExitScope();
+        
         writeIntoparserLogFile("Line " + std::to_string($line) + ": compound_statement : LCURL RCURL");
         writeIntoparserLogFile("");
         writeIntoparserLogFile($code);
@@ -184,6 +245,33 @@ var_declaration
 	t = type_specifier dl = declaration_list sm = SEMICOLON {
         $line = $sm->getLine();
         $code = $t.text + " " + $dl.names + ";";
+        
+        // Insert variables into symbol table
+        std::string varNames = $dl.names;
+        std::string delimiter = ",";
+        size_t pos = 0;
+        std::string token;
+        
+        // Parse comma-separated variable names
+        while ((pos = varNames.find(delimiter)) != std::string::npos) {
+            token = varNames.substr(0, pos);
+            // Remove array brackets for symbol table insertion
+            size_t bracketPos = token.find('[');
+            if (bracketPos != std::string::npos) {
+                token = token.substr(0, bracketPos);
+            }
+            symbolTable.Insert(token, $t.text);
+            symbolTable.PrintCurrentScopeTable();
+            varNames.erase(0, pos + delimiter.length());
+        }
+        // Handle the last variable
+        size_t bracketPos = varNames.find('[');
+        if (bracketPos != std::string::npos) {
+            varNames = varNames.substr(0, bracketPos);
+        }
+        symbolTable.Insert(varNames, $t.text);
+        symbolTable.PrintCurrentScopeTable();
+        
         writeIntoparserLogFile("Line " + std::to_string($line) + ": var_declaration : type_specifier declaration_list SEMICOLON");
         writeIntoparserLogFile("");
         writeIntoparserLogFile($code);
