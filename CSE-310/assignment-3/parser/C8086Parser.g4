@@ -44,11 +44,18 @@ start:
 	{
         // Enter global scope at the beginning of parsing
         symbolTable.EnterScope();
-    }
-    program {
+    } program {
         writeIntoparserLogFile("Line " + std::to_string($program.start->getLine()) + ": start : program");
         writeIntoparserLogFile("");
-        writeIntoparserLogFile("Parsing completed successfully with " + std::to_string(syntaxErrorCount) + " syntax errors.");
+        
+        // Print all scope tables at the end
+        std::streambuf* originalCoutBuffer = std::cout.rdbuf();
+        std::cout.rdbuf(parserLogFile.rdbuf());
+        symbolTable.PrintAllScopeTable();
+        std::cout.rdbuf(originalCoutBuffer);
+        
+        writeIntoparserLogFile("Total number of lines: " + std::to_string($program.start->getLine()));
+        writeIntoparserLogFile("Total number of errors: " + std::to_string(syntaxErrorCount));
         
         // Exit global scope at the end of parsing
         symbolTable.ExitScope();
@@ -71,8 +78,9 @@ program
         writeIntoparserLogFile("");
     };
 
-unit returns [std::string code, int line]
-    : vd=var_declaration {
+unit
+	returns[std::string code, int line]:
+	vd = var_declaration {
         $code = $vd.code;
         $line = $vd.line;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": unit : var_declaration");
@@ -80,7 +88,7 @@ unit returns [std::string code, int line]
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-    | fd=func_declaration {
+	| fd = func_declaration {
         $code = $fd.code;
         $line = $fd.line;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": unit : func_declaration");
@@ -88,15 +96,14 @@ unit returns [std::string code, int line]
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-    | fdef=func_definition {
+	| fdef = func_definition {
         $code = $fdef.code; 
         $line = $fdef.line;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": unit : func_definition");
         writeIntoparserLogFile("");
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
-    }
-    ;
+    };
 
 func_declaration
 	returns[std::string code, int line]:
@@ -113,7 +120,7 @@ func_declaration
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| t=type_specifier id=ID LPAREN RPAREN sm=SEMICOLON {
+	| t = type_specifier id = ID LPAREN RPAREN sm = SEMICOLON {
         $line = $sm->getLine();
         $code = $t.text + " " + $id->getText() + "();";
         
@@ -128,36 +135,37 @@ func_declaration
     };
 
 func_definition
-    returns[std::string code, int line]:
-	t=type_specifier id=ID LPAREN pl=parameter_list RPAREN {
-        // Insert function into symbol table
+	returns[std::string code, int line]:
+	t = type_specifier id = ID {
+        // Insert function into symbol table in current (global) scope
         symbolTable.Insert($id->getText(), $t.text);
         symbolTable.PrintCurrentScopeTable();
-        // Enter new scope for function body
+    } LPAREN {
+        // Enter new scope for function parameters and body
         symbolTable.EnterScope();
-    } cs=compound_statement {
+    } pl = parameter_list RPAREN cs = compound_statement {
         $line = $cs.line;
         $code = $t.text + " " + $id->getText() + "(" + $pl.code + ")" + $cs.code;
         
         // Exit function scope
-        symbolTable.ExitScope();
         
         writeIntoparserLogFile("Line " + std::to_string($line) + ": func_definition : type_specifier ID LPAREN parameter_list RPAREN compound_statement");
         writeIntoparserLogFile("");
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| t=type_specifier id=ID LPAREN RPAREN {
-        // Insert function into symbol table
+	| t = type_specifier id = ID {
+        // Insert function into symbol table in current (global) scope
         symbolTable.Insert($id->getText(), $t.text);
+        symbolTable.PrintCurrentScopeTable();
+    } LPAREN {
         // Enter new scope for function body
         symbolTable.EnterScope();
-    } cs=compound_statement {
+    } RPAREN cs = compound_statement {
         $line = $cs.line;
         $code = $t.text + " " + $id->getText() + "()" + $cs.code;
         
         // Exit function scope
-        symbolTable.ExitScope();
         
         writeIntoparserLogFile("Line " + std::to_string($line) + ": func_definition : type_specifier ID LPAREN RPAREN compound_statement");
         writeIntoparserLogFile("");
@@ -166,8 +174,8 @@ func_definition
     };
 
 parameter_list
-    returns[std::string code]:
-	pl=parameter_list COMMA t=type_specifier id=ID {
+	returns[std::string code]:
+	pl = parameter_list COMMA t = type_specifier id = ID {
         $code = $pl.code + "," + $t.text + " " + $id->getText();
         
         // Insert parameter into symbol table
@@ -179,14 +187,14 @@ parameter_list
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| pl=parameter_list COMMA t=type_specifier {
+	| pl = parameter_list COMMA t = type_specifier {
         $code = $pl.code + "," + $t.text;
         writeIntoparserLogFile("Line " + std::to_string($t.line) + ": parameter_list : parameter_list COMMA type_specifier");
         writeIntoparserLogFile("");
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| t=type_specifier id=ID {
+	| t = type_specifier id = ID {
         $code = $t.text + " " + $id->getText();
         
         // Insert parameter into symbol table
@@ -198,7 +206,7 @@ parameter_list
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| t=type_specifier {
+	| t = type_specifier {
         $code = $t.text;
         writeIntoparserLogFile("Line " + std::to_string($t.line) + ": parameter_list : type_specifier");
         writeIntoparserLogFile("");
@@ -206,38 +214,48 @@ parameter_list
         writeIntoparserLogFile("");
     };
 
-compound_statement 
-    returns[std::string code, int line]: 
-    LCURL {
+compound_statement
+	returns[std::string code, int line]:
+	LCURL {
         // Only enter new scope if this is not immediately following a function definition
         // (function definitions already create their own scope)
-        symbolTable.EnterScope();
-    } ss=statements rc=RCURL {
+    } ss = statements rc = RCURL {
         $line = $rc->getLine();
         $code = "{\n" + $ss.code + "\n}";
-        
-        // Exit compound statement scope
-        symbolTable.ExitScope();
         
         writeIntoparserLogFile("Line " + std::to_string($line) + ": compound_statement : LCURL statements RCURL");
         writeIntoparserLogFile("");
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
+        
+        std::streambuf* originalCoutBuffer = std::cout.rdbuf();
+        std::cout.rdbuf(parserLogFile.rdbuf());
+
+        symbolTable.PrintAllScopeTable();  
+
+        std::cout.rdbuf(originalCoutBuffer);
+
+        symbolTable.ExitScope();
     }
-    | LCURL {
+	| LCURL {
         // Only enter new scope if this is not immediately following a function definition
-        symbolTable.EnterScope();
-    } rc=RCURL {
+    } rc = RCURL {
         $line = $rc->getLine();
         $code = "{\n}";
-        
-        // Exit compound statement scope
-        symbolTable.ExitScope();
         
         writeIntoparserLogFile("Line " + std::to_string($line) + ": compound_statement : LCURL RCURL");
         writeIntoparserLogFile("");
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
+        
+        // Exit compound statement scope
+        std::streambuf* originalCoutBuffer = std::cout.rdbuf();
+        std::cout.rdbuf(parserLogFile.rdbuf());
+
+        symbolTable.PrintAllScopeTable();  
+
+        std::cout.rdbuf(originalCoutBuffer);
+        symbolTable.ExitScope();
     };
 
 var_declaration
@@ -341,14 +359,14 @@ declaration_list
         writeIntoparserLogFile($names);
         writeIntoparserLogFile(""); 
     }
-	| id=ID LTHIRD ci=CONST_INT RTHIRD {
+	| id = ID LTHIRD ci = CONST_INT RTHIRD {
         $names = $id->getText() + "[" + $ci->getText() + "]";
         writeIntoparserLogFile("Line " + std::to_string($id->getLine()) + ": declaration_list : ID LTHIRD CONST_INT RTHIRD");
         writeIntoparserLogFile("");
         writeIntoparserLogFile($names);
         writeIntoparserLogFile("");
     }
-	| dl=declaration_list COMMA id=ID LTHIRD ci=CONST_INT RTHIRD {
+	| dl = declaration_list COMMA id = ID LTHIRD ci = CONST_INT RTHIRD {
         $names = $dl.names + "," + $id->getText() + "[" + $ci->getText() + "]";
         writeIntoparserLogFile("Line " + std::to_string($id->getLine()) + ": declaration_list : declaration_list COMMA ID LTHIRD CONST_INT RTHIRD");
         writeIntoparserLogFile("");
@@ -357,15 +375,15 @@ declaration_list
     };
 
 statements
-    returns[std::string code]: 
-    s=statement {
+	returns[std::string code]:
+	s = statement {
         $code = $s.code;
         writeIntoparserLogFile("Line " + std::to_string($s.line) + ": statements : statement");
         writeIntoparserLogFile("");
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-    | ss=statements s=statement {
+	| ss = statements s = statement {
         $code = $ss.code + "\n" + $s.code;
         writeIntoparserLogFile("Line " + std::to_string($s.line) + ": statements : statements statement");
         writeIntoparserLogFile("");
@@ -374,8 +392,8 @@ statements
     };
 
 statement
-    returns[std::string code, int line]:
-	vd=var_declaration {
+	returns[std::string code, int line]:
+	vd = var_declaration {
         $code = $vd.code;
         $line = $vd.line;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": statement : var_declaration");
@@ -383,7 +401,7 @@ statement
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| es=expression_statement {
+	| es = expression_statement {
         $code = $es.code;
         $line = $es.line;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": statement : expression_statement");
@@ -391,7 +409,7 @@ statement
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| cs=compound_statement {
+	| cs = compound_statement {
         $code = $cs.code;
         $line = $cs.line;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": statement : compound_statement");
@@ -399,7 +417,8 @@ statement
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| FOR LPAREN es1=expression_statement es2=expression_statement e=expression RPAREN s=statement {
+	| FOR LPAREN es1 = expression_statement es2 = expression_statement e = expression RPAREN s =
+		statement {
         $line = $FOR->getLine();
         $code = "for(" + $es1.code + $es2.code + $e.code + ")" + $s.code;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": statement : FOR LPAREN expression_statement expression_statement expression RPAREN statement");
@@ -407,7 +426,7 @@ statement
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| IF LPAREN e=expression RPAREN s=statement {
+	| IF LPAREN e = expression RPAREN s = statement {
         $line = $IF->getLine();
         $code = "if(" + $e.code + ")" + $s.code;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": statement : IF LPAREN expression RPAREN statement");
@@ -415,7 +434,7 @@ statement
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| IF LPAREN e=expression RPAREN s1=statement ELSE s2=statement {
+	| IF LPAREN e = expression RPAREN s1 = statement ELSE s2 = statement {
         $line = $IF->getLine();
         $code = "if(" + $e.code + ")" + $s1.code + "else" + $s2.code;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": statement : IF LPAREN expression RPAREN statement ELSE statement");
@@ -423,7 +442,7 @@ statement
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| WHILE LPAREN e=expression RPAREN s=statement {
+	| WHILE LPAREN e = expression RPAREN s = statement {
         $line = $WHILE->getLine();
         $code = "while(" + $e.code + ")" + $s.code;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": statement : WHILE LPAREN expression RPAREN statement");
@@ -431,7 +450,7 @@ statement
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| PRINTLN LPAREN id=ID RPAREN sm=SEMICOLON {
+	| PRINTLN LPAREN id = ID RPAREN sm = SEMICOLON {
         $line = $sm->getLine();
         $code = "println(" + $id->getText() + ");";
         writeIntoparserLogFile("Line " + std::to_string($line) + ": statement : PRINTLN LPAREN ID RPAREN SEMICOLON");
@@ -439,7 +458,7 @@ statement
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| RETURN e=expression sm=SEMICOLON {
+	| RETURN e = expression sm = SEMICOLON {
         $line = $sm->getLine();
         $code = "return " + $e.code + ";";
         writeIntoparserLogFile("Line " + std::to_string($line) + ": statement : RETURN expression SEMICOLON");
@@ -449,8 +468,8 @@ statement
     };
 
 expression_statement
-    returns[std::string code, int line]: 
-    sm=SEMICOLON {
+	returns[std::string code, int line]:
+	sm = SEMICOLON {
         $line = $sm->getLine();
         $code = ";";
         writeIntoparserLogFile("Line " + std::to_string($line) + ": expression_statement : SEMICOLON");
@@ -458,7 +477,7 @@ expression_statement
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-    | e=expression sm=SEMICOLON {
+	| e = expression sm = SEMICOLON {
         $line = $sm->getLine();
         $code = $e.code + ";";
         writeIntoparserLogFile("Line " + std::to_string($line) + ": expression_statement : expression SEMICOLON");
@@ -468,8 +487,8 @@ expression_statement
     };
 
 variable
-    returns[std::string code, int line]: 
-    id=ID {
+	returns[std::string code, int line]:
+	id = ID {
         $line = $id->getLine();
         $code = $id->getText();
         writeIntoparserLogFile("Line " + std::to_string($line) + ": variable : ID");
@@ -477,7 +496,7 @@ variable
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-    | id=ID LTHIRD e=expression RTHIRD {
+	| id = ID LTHIRD e = expression RTHIRD {
         $line = $id->getLine();
         $code = $id->getText() + "[" + $e.code + "]";
         writeIntoparserLogFile("Line " + std::to_string($line) + ": variable : ID LTHIRD expression RTHIRD");
@@ -487,8 +506,8 @@ variable
     };
 
 expression
-    returns[std::string code, int line]:
-	le=logic_expression {
+	returns[std::string code, int line]:
+	le = logic_expression {
         $code = $le.code; 
         $line = $le.line;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": expression : logic_expression");
@@ -496,7 +515,7 @@ expression
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| v=variable ASSIGNOP le=logic_expression {
+	| v = variable ASSIGNOP le = logic_expression {
         $line = $v.line;
         $code = $v.code + "=" + $le.code;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": expression : variable ASSIGNOP logic_expression");
@@ -506,8 +525,8 @@ expression
     };
 
 logic_expression
-    returns[std::string code, int line]:
-	re=rel_expression {
+	returns[std::string code, int line]:
+	re = rel_expression {
         $code = $re.code;
         $line = $re.line;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": logic_expression : rel_expression");
@@ -515,7 +534,7 @@ logic_expression
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| re1=rel_expression op=LOGICOP re2=rel_expression {
+	| re1 = rel_expression op = LOGICOP re2 = rel_expression {
         $line = $re1.line;
         $code = $re1.code + $op->getText() + $re2.code;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": logic_expression : rel_expression LOGICOP rel_expression");
@@ -525,8 +544,8 @@ logic_expression
     };
 
 rel_expression
-    returns[std::string code, int line]:
-	se=simple_expression {
+	returns[std::string code, int line]:
+	se = simple_expression {
         $code = $se.code;
         $line = $se.line;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": rel_expression : simple_expression");
@@ -534,7 +553,7 @@ rel_expression
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| se1=simple_expression op=RELOP se2=simple_expression {
+	| se1 = simple_expression op = RELOP se2 = simple_expression {
         $line = $se1.line;
         $code = $se1.code + $op->getText() + $se2.code;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": rel_expression : simple_expression RELOP simple_expression");
@@ -544,8 +563,8 @@ rel_expression
     };
 
 simple_expression
-    returns[std::string code, int line]: 
-    t=term {
+	returns[std::string code, int line]:
+	t = term {
         $code = $t.code;
         $line = $t.line;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": simple_expression : term");
@@ -553,7 +572,7 @@ simple_expression
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-    | se=simple_expression op=ADDOP t=term {
+	| se = simple_expression op = ADDOP t = term {
         $line = $se.line;
         $code = $se.code + $op->getText() + $t.code;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": simple_expression : simple_expression ADDOP term");
@@ -563,8 +582,8 @@ simple_expression
     };
 
 term
-    returns[std::string code, int line]: 
-    ue=unary_expression {
+	returns[std::string code, int line]:
+	ue = unary_expression {
         $code = $ue.code;
         $line = $ue.line;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": term : unary_expression");
@@ -572,7 +591,7 @@ term
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-    | t=term op=MULOP ue=unary_expression {
+	| t = term op = MULOP ue = unary_expression {
         $line = $t.line;
         $code = $t.code + $op->getText() + $ue.code;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": term : term MULOP unary_expression");
@@ -582,8 +601,8 @@ term
     };
 
 unary_expression
-    returns[std::string code, int line]:
-	op=ADDOP ue=unary_expression {
+	returns[std::string code, int line]:
+	op = ADDOP ue = unary_expression {
         $line = $op->getLine();
         $code = $op->getText() + $ue.code;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": unary_expression : ADDOP unary_expression");
@@ -591,7 +610,7 @@ unary_expression
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| NOT ue=unary_expression {
+	| NOT ue = unary_expression {
         $line = $NOT->getLine();
         $code = "!" + $ue.code;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": unary_expression : NOT unary_expression");
@@ -599,7 +618,7 @@ unary_expression
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| f=factor {
+	| f = factor {
         $code = $f.code;
         $line = $f.line;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": unary_expression : factor");
@@ -609,8 +628,8 @@ unary_expression
     };
 
 factor
-    returns[std::string code, int line]:
-	v=variable {
+	returns[std::string code, int line]:
+	v = variable {
         $code = $v.code;
         $line = $v.line;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": factor : variable");
@@ -618,7 +637,7 @@ factor
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| id=ID LPAREN al=argument_list RPAREN {
+	| id = ID LPAREN al = argument_list RPAREN {
         $line = $id->getLine();
         $code = $id->getText() + "(" + $al.code + ")";
         writeIntoparserLogFile("Line " + std::to_string($line) + ": factor : ID LPAREN argument_list RPAREN");
@@ -626,7 +645,7 @@ factor
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| LPAREN e=expression RPAREN {
+	| LPAREN e = expression RPAREN {
         $line = $LPAREN->getLine();
         $code = "(" + $e.code + ")";
         writeIntoparserLogFile("Line " + std::to_string($line) + ": factor : LPAREN expression RPAREN");
@@ -634,7 +653,7 @@ factor
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| ci=CONST_INT {
+	| ci = CONST_INT {
         $line = $ci->getLine();
         $code = $ci->getText();
         writeIntoparserLogFile("Line " + std::to_string($line) + ": factor : CONST_INT");
@@ -642,7 +661,7 @@ factor
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| cf=CONST_FLOAT {
+	| cf = CONST_FLOAT {
         $line = $cf->getLine();
         $code = $cf->getText();
         writeIntoparserLogFile("Line " + std::to_string($line) + ": factor : CONST_FLOAT");
@@ -650,7 +669,7 @@ factor
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| v=variable INCOP {
+	| v = variable INCOP {
         $line = $v.line;
         $code = $v.code + "++";
         writeIntoparserLogFile("Line " + std::to_string($line) + ": factor : variable INCOP");
@@ -658,7 +677,7 @@ factor
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-	| v=variable DECOP {
+	| v = variable DECOP {
         $line = $v.line;
         $code = $v.code + "--";
         writeIntoparserLogFile("Line " + std::to_string($line) + ": factor : variable DECOP");
@@ -668,22 +687,22 @@ factor
     };
 
 argument_list
-    returns[std::string code]: 
-    a=arguments {
+	returns[std::string code]:
+	a = arguments {
         $code = $a.code;
         writeIntoparserLogFile("Line " + std::to_string($a.line) + ": argument_list : arguments");
         writeIntoparserLogFile("");
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-    | {
+	| {
         $code = "";
         // No logging for empty argument list
     };
 
 arguments
-    returns[std::string code, int line]: 
-    a=arguments COMMA le=logic_expression {
+	returns[std::string code, int line]:
+	a = arguments COMMA le = logic_expression {
         $line = $a.line;
         $code = $a.code + "," + $le.code;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": arguments : arguments COMMA logic_expression");
@@ -691,7 +710,7 @@ arguments
         writeIntoparserLogFile($code);
         writeIntoparserLogFile("");
     }
-    | le=logic_expression {
+	| le = logic_expression {
         $line = $le.line;
         $code = $le.code;
         writeIntoparserLogFile("Line " + std::to_string($line) + ": arguments : logic_expression");
