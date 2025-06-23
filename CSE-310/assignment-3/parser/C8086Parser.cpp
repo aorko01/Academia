@@ -562,10 +562,6 @@ tree::TerminalNode* C8086Parser::Func_declarationContext::LPAREN() {
   return getToken(C8086Parser::LPAREN, 0);
 }
 
-C8086Parser::Parameter_listContext* C8086Parser::Func_declarationContext::parameter_list() {
-  return getRuleContext<C8086Parser::Parameter_listContext>(0);
-}
-
 tree::TerminalNode* C8086Parser::Func_declarationContext::RPAREN() {
   return getToken(C8086Parser::RPAREN, 0);
 }
@@ -576,6 +572,10 @@ C8086Parser::Type_specifierContext* C8086Parser::Func_declarationContext::type_s
 
 tree::TerminalNode* C8086Parser::Func_declarationContext::ID() {
   return getToken(C8086Parser::ID, 0);
+}
+
+C8086Parser::Parameter_listContext* C8086Parser::Func_declarationContext::parameter_list() {
+  return getRuleContext<C8086Parser::Parameter_listContext>(0);
 }
 
 tree::TerminalNode* C8086Parser::Func_declarationContext::SEMICOLON() {
@@ -623,18 +623,25 @@ C8086Parser::Func_declarationContext* C8086Parser::func_declaration() {
       setState(78);
       match(C8086Parser::LPAREN);
       setState(79);
-      parameter_list(0);
+      antlrcpp::downCast<Func_declarationContext *>(_localctx)->pl = parameter_list(0);
       setState(80);
       match(C8086Parser::RPAREN);
       setState(81);
       antlrcpp::downCast<Func_declarationContext *>(_localctx)->sm = match(C8086Parser::SEMICOLON);
 
               antlrcpp::downCast<Func_declarationContext *>(_localctx)->line =  antlrcpp::downCast<Func_declarationContext *>(_localctx)->sm->getLine();
-              antlrcpp::downCast<Func_declarationContext *>(_localctx)->code =  antlrcpp::downCast<Func_declarationContext *>(_localctx)->t->text + " " + antlrcpp::downCast<Func_declarationContext *>(_localctx)->id->getText() + "();";
+              antlrcpp::downCast<Func_declarationContext *>(_localctx)->code =  antlrcpp::downCast<Func_declarationContext *>(_localctx)->t->text + " " + antlrcpp::downCast<Func_declarationContext *>(_localctx)->id->getText() + "(" + (antlrcpp::downCast<Func_declarationContext *>(_localctx)->pl != nullptr ? _input->getText(antlrcpp::downCast<Func_declarationContext *>(_localctx)->pl->start, antlrcpp::downCast<Func_declarationContext *>(_localctx)->pl->stop) : nullptr) + ");";
               
-              // Insert function into symbol table
-              symbolTable.Insert(antlrcpp::downCast<Func_declarationContext *>(_localctx)->id->getText(), antlrcpp::downCast<Func_declarationContext *>(_localctx)->t->text);
-              symbolTable.PrintCurrentScopeTable();
+              // Try to insert function into symbol table
+              // If it already exists, check if it's compatible (same return type)
+              if (!symbolTable.Insert(antlrcpp::downCast<Func_declarationContext *>(_localctx)->id->getText(), antlrcpp::downCast<Func_declarationContext *>(_localctx)->t->text)) {
+                  // Function already exists, check if types match
+                  std::string existingType = symbolTable.GetType(antlrcpp::downCast<Func_declarationContext *>(_localctx)->id->getText());
+                  if (existingType != antlrcpp::downCast<Func_declarationContext *>(_localctx)->t->text) {
+                      logError(_localctx->line, "Conflicting return type for function " + antlrcpp::downCast<Func_declarationContext *>(_localctx)->id->getText());
+                  }
+                  // If types match, it's just a redeclaration which is allowed
+              }
               
               writeIntoparserLogFile("Line " + std::to_string(_localctx->line) + ": func_declaration : type_specifier ID LPAREN parameter_list RPAREN SEMICOLON");
               writeIntoparserLogFile("");
@@ -660,9 +667,16 @@ C8086Parser::Func_declarationContext* C8086Parser::func_declaration() {
               antlrcpp::downCast<Func_declarationContext *>(_localctx)->line =  antlrcpp::downCast<Func_declarationContext *>(_localctx)->sm->getLine();
               antlrcpp::downCast<Func_declarationContext *>(_localctx)->code =  antlrcpp::downCast<Func_declarationContext *>(_localctx)->t->text + " " + antlrcpp::downCast<Func_declarationContext *>(_localctx)->id->getText() + "();";
               
-              // Insert function into symbol table
-              symbolTable.Insert(antlrcpp::downCast<Func_declarationContext *>(_localctx)->id->getText(), antlrcpp::downCast<Func_declarationContext *>(_localctx)->t->text);
-              symbolTable.PrintCurrentScopeTable();
+              // Try to insert function into symbol table
+              // If it already exists, check if it's compatible (same return type)
+              if (!symbolTable.Insert(antlrcpp::downCast<Func_declarationContext *>(_localctx)->id->getText(), antlrcpp::downCast<Func_declarationContext *>(_localctx)->t->text)) {
+                  // Function already exists, check if types match
+                  std::string existingType = symbolTable.GetType(antlrcpp::downCast<Func_declarationContext *>(_localctx)->id->getText());
+                  if (existingType != antlrcpp::downCast<Func_declarationContext *>(_localctx)->t->text) {
+                      logError(_localctx->line, "Conflicting return type for function " + antlrcpp::downCast<Func_declarationContext *>(_localctx)->id->getText());
+                  }
+                  // If types match, it's just a redeclaration which is allowed
+              }
               
               writeIntoparserLogFile("Line " + std::to_string(_localctx->line) + ": func_declaration : type_specifier ID LPAREN RPAREN SEMICOLON");
               writeIntoparserLogFile("");
@@ -755,9 +769,18 @@ C8086Parser::Func_definitionContext* C8086Parser::func_definition() {
       setState(94);
       antlrcpp::downCast<Func_definitionContext *>(_localctx)->id = match(C8086Parser::ID);
 
-              // Insert function into symbol table in current (global) scope
-              symbolTable.Insert(antlrcpp::downCast<Func_definitionContext *>(_localctx)->id->getText(), antlrcpp::downCast<Func_definitionContext *>(_localctx)->t->text);
-              symbolTable.PrintCurrentScopeTable();
+              // Try to insert function into symbol table
+              // If it already exists, check if it's compatible (same return type)
+              if (!symbolTable.Insert(antlrcpp::downCast<Func_definitionContext *>(_localctx)->id->getText(), antlrcpp::downCast<Func_definitionContext *>(_localctx)->t->text)) {
+                  // Function already exists, check if types match
+                  std::string existingType = symbolTable.GetType(antlrcpp::downCast<Func_definitionContext *>(_localctx)->id->getText());
+                  if (existingType != antlrcpp::downCast<Func_definitionContext *>(_localctx)->t->text) {
+                      logError(antlrcpp::downCast<Func_definitionContext *>(_localctx)->id->getLine(), "Conflicting return type for function " + antlrcpp::downCast<Func_definitionContext *>(_localctx)->id->getText());
+                  }
+                  // If types match, this is a definition after declaration which is allowed
+              }
+              // You might want to track that this function now has a definition
+              // symbolTable.MarkAsDefined(antlrcpp::downCast<Func_definitionContext *>(_localctx)->id->getText());
           
       setState(96);
       match(C8086Parser::LPAREN);
@@ -775,7 +798,7 @@ C8086Parser::Func_definitionContext* C8086Parser::func_definition() {
               antlrcpp::downCast<Func_definitionContext *>(_localctx)->line =  antlrcpp::downCast<Func_definitionContext *>(_localctx)->cs->line;
               antlrcpp::downCast<Func_definitionContext *>(_localctx)->code =  antlrcpp::downCast<Func_definitionContext *>(_localctx)->t->text + " " + antlrcpp::downCast<Func_definitionContext *>(_localctx)->id->getText() + "(" + antlrcpp::downCast<Func_definitionContext *>(_localctx)->pl->code + ")" + antlrcpp::downCast<Func_definitionContext *>(_localctx)->cs->code;
               
-              // Exit function scope
+              // Exit function scope (this will be handled in compound_statement)
               
               writeIntoparserLogFile("Line " + std::to_string(_localctx->line) + ": func_definition : type_specifier ID LPAREN parameter_list RPAREN compound_statement");
               writeIntoparserLogFile("");
@@ -792,9 +815,18 @@ C8086Parser::Func_definitionContext* C8086Parser::func_definition() {
       setState(104);
       antlrcpp::downCast<Func_definitionContext *>(_localctx)->id = match(C8086Parser::ID);
 
-              // Insert function into symbol table in current (global) scope
-              symbolTable.Insert(antlrcpp::downCast<Func_definitionContext *>(_localctx)->id->getText(), antlrcpp::downCast<Func_definitionContext *>(_localctx)->t->text);
-              symbolTable.PrintCurrentScopeTable();
+              // Try to insert function into symbol table
+              // If it already exists, check if it's compatible (same return type)
+              if (!symbolTable.Insert(antlrcpp::downCast<Func_definitionContext *>(_localctx)->id->getText(), antlrcpp::downCast<Func_definitionContext *>(_localctx)->t->text)) {
+                  // Function already exists, check if types match
+                  std::string existingType = symbolTable.GetType(antlrcpp::downCast<Func_definitionContext *>(_localctx)->id->getText());
+                  if (existingType != antlrcpp::downCast<Func_definitionContext *>(_localctx)->t->text) {
+                      logError(antlrcpp::downCast<Func_definitionContext *>(_localctx)->id->getLine(), "Conflicting return type for function " + antlrcpp::downCast<Func_definitionContext *>(_localctx)->id->getText());
+                  }
+                  // If types match, this is a definition after declaration which is allowed
+              }
+              // You might want to track that this function now has a definition
+              // symbolTable.MarkAsDefined(antlrcpp::downCast<Func_definitionContext *>(_localctx)->id->getText());
           
       setState(106);
       match(C8086Parser::LPAREN);
@@ -810,7 +842,7 @@ C8086Parser::Func_definitionContext* C8086Parser::func_definition() {
               antlrcpp::downCast<Func_definitionContext *>(_localctx)->line =  antlrcpp::downCast<Func_definitionContext *>(_localctx)->cs->line;
               antlrcpp::downCast<Func_definitionContext *>(_localctx)->code =  antlrcpp::downCast<Func_definitionContext *>(_localctx)->t->text + " " + antlrcpp::downCast<Func_definitionContext *>(_localctx)->id->getText() + "()" + antlrcpp::downCast<Func_definitionContext *>(_localctx)->cs->code;
               
-              // Exit function scope
+              // Exit function scope (this will be handled in compound_statement)
               
               writeIntoparserLogFile("Line " + std::to_string(_localctx->line) + ": func_definition : type_specifier ID LPAREN RPAREN compound_statement");
               writeIntoparserLogFile("");
@@ -910,9 +942,10 @@ C8086Parser::Parameter_listContext* C8086Parser::parameter_list(int precedence) 
 
               antlrcpp::downCast<Parameter_listContext *>(_localctx)->code =  antlrcpp::downCast<Parameter_listContext *>(_localctx)->t->text + " " + antlrcpp::downCast<Parameter_listContext *>(_localctx)->id->getText();
               
-              // Insert parameter into symbol table
-              symbolTable.Insert(antlrcpp::downCast<Parameter_listContext *>(_localctx)->id->getText(), antlrcpp::downCast<Parameter_listContext *>(_localctx)->t->text);
-              symbolTable.PrintCurrentScopeTable();
+              // Insert parameter into symbol table - Insert returns false if already exists
+              if (!symbolTable.Insert(antlrcpp::downCast<Parameter_listContext *>(_localctx)->id->getText(), antlrcpp::downCast<Parameter_listContext *>(_localctx)->t->text)) {
+                  logError(antlrcpp::downCast<Parameter_listContext *>(_localctx)->id->getLine(), "Multiple declaration of " + antlrcpp::downCast<Parameter_listContext *>(_localctx)->id->getText());
+              }
               
               writeIntoparserLogFile("Line " + std::to_string(antlrcpp::downCast<Parameter_listContext *>(_localctx)->id->getLine()) + ": parameter_list : type_specifier ID");
               writeIntoparserLogFile("");
@@ -966,9 +999,10 @@ C8086Parser::Parameter_listContext* C8086Parser::parameter_list(int precedence) 
 
                             antlrcpp::downCast<Parameter_listContext *>(_localctx)->code =  antlrcpp::downCast<Parameter_listContext *>(_localctx)->pl->code + "," + antlrcpp::downCast<Parameter_listContext *>(_localctx)->t->text + " " + antlrcpp::downCast<Parameter_listContext *>(_localctx)->id->getText();
                             
-                            // Insert parameter into symbol table
-                            symbolTable.Insert(antlrcpp::downCast<Parameter_listContext *>(_localctx)->id->getText(), antlrcpp::downCast<Parameter_listContext *>(_localctx)->t->text);
-                            symbolTable.PrintCurrentScopeTable();
+                            // Insert parameter into symbol table - Insert returns false if already exists
+                            if (!symbolTable.Insert(antlrcpp::downCast<Parameter_listContext *>(_localctx)->id->getText(), antlrcpp::downCast<Parameter_listContext *>(_localctx)->t->text)) {
+                                logError(antlrcpp::downCast<Parameter_listContext *>(_localctx)->id->getLine(), "Multiple declaration of " + antlrcpp::downCast<Parameter_listContext *>(_localctx)->id->getText());
+                            }
                             
                             writeIntoparserLogFile("Line " + std::to_string(antlrcpp::downCast<Parameter_listContext *>(_localctx)->id->getLine()) + ": parameter_list : parameter_list COMMA type_specifier ID");
                             writeIntoparserLogFile("");
@@ -1071,8 +1105,8 @@ C8086Parser::Compound_statementContext* C8086Parser::compound_statement() {
       setState(140);
       match(C8086Parser::LCURL);
 
-              // Only enter new scope if this is not immediately following a function definition
-              // (function definitions already create their own scope)
+              // Enter new scope for compound statement (not for function definitions)
+              symbolTable.EnterScope();
           
       setState(142);
       antlrcpp::downCast<Compound_statementContext *>(_localctx)->ss = statements(0);
@@ -1104,7 +1138,8 @@ C8086Parser::Compound_statementContext* C8086Parser::compound_statement() {
       setState(146);
       match(C8086Parser::LCURL);
 
-              // Only enter new scope if this is not immediately following a function definition
+              // Enter new scope for compound statement
+              symbolTable.EnterScope();
           
       setState(148);
       antlrcpp::downCast<Compound_statementContext *>(_localctx)->rc = match(C8086Parser::RCURL);
@@ -1225,16 +1260,14 @@ C8086Parser::Var_declarationContext* C8086Parser::var_declaration() {
                       token = token.substr(0, bracketPos);
                   }
                   
-                  // Check for duplicate declaration in current scope
-                  if (symbolTable.Lookup(token)) {
+                  // Use Insert function - it returns false if already exists in current scope
+                  std::string typeInfo = antlrcpp::downCast<Var_declarationContext *>(_localctx)->t->text;
+                  if (isArray) typeInfo += "_ARRAY";
+                  
+                  if (!symbolTable.Insert(token, typeInfo)) {
                       logError(_localctx->line, "Multiple declaration of " + token);
-                  } else {
-                      // For now, store array info in the type string
-                      string typeInfo = antlrcpp::downCast<Var_declarationContext *>(_localctx)->t->text;
-                      if (isArray) typeInfo += "_ARRAY";
-                      symbolTable.Insert(token, typeInfo);
                   }
-                  symbolTable.PrintCurrentScopeTable();
+                  
                   varNames.erase(0, pos + delimiter.length());
               }
               // Handle the last variable
@@ -1244,16 +1277,13 @@ C8086Parser::Var_declarationContext* C8086Parser::var_declaration() {
                   varNames = varNames.substr(0, bracketPos);
               }
               
-              // Check for duplicate declaration in current scope
-              if (symbolTable.Lookup(varNames)) {
+              // Use Insert function - it returns false if already exists in current scope
+              std::string typeInfo = antlrcpp::downCast<Var_declarationContext *>(_localctx)->t->text;
+              if (isArray) typeInfo += "_ARRAY";
+              
+              if (!symbolTable.Insert(varNames, typeInfo)) {
                   logError(_localctx->line, "Multiple declaration of " + varNames);
-              } else {
-                  // For now, store array info in the type string
-                  string typeInfo = antlrcpp::downCast<Var_declarationContext *>(_localctx)->t->text;
-                  if (isArray) typeInfo += "_ARRAY";
-                  symbolTable.Insert(varNames, typeInfo);
               }
-              symbolTable.PrintCurrentScopeTable();
               
               writeIntoparserLogFile("Line " + std::to_string(_localctx->line) + ": var_declaration : type_specifier declaration_list SEMICOLON");
               writeIntoparserLogFile("");
@@ -2219,8 +2249,8 @@ C8086Parser::VariableContext* C8086Parser::variable() {
               antlrcpp::downCast<VariableContext *>(_localctx)->line =  antlrcpp::downCast<VariableContext *>(_localctx)->id->getLine();
               antlrcpp::downCast<VariableContext *>(_localctx)->code =  antlrcpp::downCast<VariableContext *>(_localctx)->id->getText();
               
-              // Check if variable is declared
-              if (!symbolTable.Lookup(antlrcpp::downCast<VariableContext *>(_localctx)->id->getText())) {
+              // Check if variable is declared using Lookup - returns NULL if not found
+              if (symbolTable.Lookup(antlrcpp::downCast<VariableContext *>(_localctx)->id->getText()) == NULL) {
                   logError(_localctx->line, "Undeclared variable " + antlrcpp::downCast<VariableContext *>(_localctx)->id->getText());
               }
               
@@ -2246,8 +2276,8 @@ C8086Parser::VariableContext* C8086Parser::variable() {
               antlrcpp::downCast<VariableContext *>(_localctx)->line =  antlrcpp::downCast<VariableContext *>(_localctx)->id->getLine();
               antlrcpp::downCast<VariableContext *>(_localctx)->code =  antlrcpp::downCast<VariableContext *>(_localctx)->id->getText() + "[" + antlrcpp::downCast<VariableContext *>(_localctx)->e->code + "]";
               
-              // Check if variable is declared
-              if (!symbolTable.Lookup(antlrcpp::downCast<VariableContext *>(_localctx)->id->getText())) {
+              // Check if variable is declared using Lookup - returns NULL if not found
+              if (symbolTable.Lookup(antlrcpp::downCast<VariableContext *>(_localctx)->id->getText()) == NULL) {
                   logError(_localctx->line, "Undeclared variable " + antlrcpp::downCast<VariableContext *>(_localctx)->id->getText());
               } else {
                   // Check if array index is integer
@@ -2362,14 +2392,16 @@ C8086Parser::ExpressionContext* C8086Parser::expression() {
                   varName = varName.substr(0, bracketPos);
               }
               
-              // Check type compatibility
-              if (symbolTable.Lookup(varName)) {
+              // Check type compatibility using Lookup
+              SymbolInfo* varInfo = symbolTable.Lookup(varName);
+              if (varInfo != NULL) {
                   std::string varType = getVariableType(varName);
                   bool isArray = isArrayVariable(varName);
                   
                   // Check if trying to assign to whole array
                   if (isArray && bracketPos == std::string::npos) {
                       logError(_localctx->line, "Type mismatch, " + varName + " is an array");
+                      writeIntoparserLogFile("Error: Type mismatch, " + varName + " is an array");
                   }
                   // Check type compatibility for assignment
                   else if (varType == "int" && antlrcpp::downCast<ExpressionContext *>(_localctx)->le->code.find('.') != std::string::npos) {
@@ -3059,7 +3091,8 @@ C8086Parser::FactorContext* C8086Parser::factor() {
               if (!args.empty()) {
                   // Simple check - if argument is just a variable name, check if it's an array
                   if (args.find('(') == std::string::npos && args.find('[') == std::string::npos) {
-                      if (symbolTable.Lookup(args) && isArrayVariable(args)) {
+                      SymbolInfo* argInfo = symbolTable.Lookup(args);
+                      if (argInfo != NULL && isArrayVariable(args)) {
                           logError(_localctx->line, "Type mismatch, " + args + " is an array");
                       }
                   }

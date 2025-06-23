@@ -205,3 +205,13 @@ std::string SymbolTable::getHashFunctionName() const
         return "Unknown";
     }
 }
+
+std::string SymbolTable::GetType(const std::string &name)
+{
+    SymbolInfo *info = Lookup(name);
+    if (info != NULL)
+    {
+        return info->get_type();
+    }
+    return "";
+}

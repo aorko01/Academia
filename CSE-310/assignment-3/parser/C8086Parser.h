@@ -198,14 +198,15 @@ public:
     int line;
     C8086Parser::Type_specifierContext *t = nullptr;
     antlr4::Token *id = nullptr;
+    C8086Parser::Parameter_listContext *pl = nullptr;
     antlr4::Token *sm = nullptr;
     Func_declarationContext(antlr4::ParserRuleContext *parent, size_t invokingState);
     virtual size_t getRuleIndex() const override;
     antlr4::tree::TerminalNode *LPAREN();
-    Parameter_listContext *parameter_list();
     antlr4::tree::TerminalNode *RPAREN();
     Type_specifierContext *type_specifier();
     antlr4::tree::TerminalNode *ID();
+    Parameter_listContext *parameter_list();
     antlr4::tree::TerminalNode *SEMICOLON();
 
     virtual void enterRule(antlr4::tree::ParseTreeListener *listener) override;

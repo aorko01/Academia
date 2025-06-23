@@ -411,16 +411,17 @@ public class C8086Parser extends Parser {
 		public int line;
 		public Type_specifierContext t;
 		public Token id;
+		public Parameter_listContext pl;
 		public Token sm;
 		public TerminalNode LPAREN() { return getToken(C8086Parser.LPAREN, 0); }
-		public Parameter_listContext parameter_list() {
-			return getRuleContext(Parameter_listContext.class,0);
-		}
 		public TerminalNode RPAREN() { return getToken(C8086Parser.RPAREN, 0); }
 		public Type_specifierContext type_specifier() {
 			return getRuleContext(Type_specifierContext.class,0);
 		}
 		public TerminalNode ID() { return getToken(C8086Parser.ID, 0); }
+		public Parameter_listContext parameter_list() {
+			return getRuleContext(Parameter_listContext.class,0);
+		}
 		public TerminalNode SEMICOLON() { return getToken(C8086Parser.SEMICOLON, 0); }
 		public Func_declarationContext(ParserRuleContext parent, int invokingState) {
 			super(parent, invokingState);
@@ -445,18 +446,25 @@ public class C8086Parser extends Parser {
 				setState(78);
 				match(LPAREN);
 				setState(79);
-				parameter_list(0);
+				((Func_declarationContext)_localctx).pl = parameter_list(0);
 				setState(80);
 				match(RPAREN);
 				setState(81);
 				((Func_declarationContext)_localctx).sm = match(SEMICOLON);
 
 				        ((Func_declarationContext)_localctx).line =  ((Func_declarationContext)_localctx).sm->getLine();
-				        ((Func_declarationContext)_localctx).code =  ((Func_declarationContext)_localctx).t.text + " " + ((Func_declarationContext)_localctx).id->getText() + "();";
+				        ((Func_declarationContext)_localctx).code =  ((Func_declarationContext)_localctx).t.text + " " + ((Func_declarationContext)_localctx).id->getText() + "(" + (((Func_declarationContext)_localctx).pl!=null?_input.getText(((Func_declarationContext)_localctx).pl.start,((Func_declarationContext)_localctx).pl.stop):null) + ");";
 				        
-				        // Insert function into symbol table
-				        symbolTable.Insert(((Func_declarationContext)_localctx).id->getText(), ((Func_declarationContext)_localctx).t.text);
-				        symbolTable.PrintCurrentScopeTable();
+				        // Try to insert function into symbol table
+				        // If it already exists, check if it's compatible (same return type)
+				        if (!symbolTable.Insert(((Func_declarationContext)_localctx).id->getText(), ((Func_declarationContext)_localctx).t.text)) {
+				            // Function already exists, check if types match
+				            std::string existingType = symbolTable.GetType(((Func_declarationContext)_localctx).id->getText());
+				            if (existingType != ((Func_declarationContext)_localctx).t.text) {
+				                logError(_localctx.line, "Conflicting return type for function " + ((Func_declarationContext)_localctx).id->getText());
+				            }
+				            // If types match, it's just a redeclaration which is allowed
+				        }
 				        
 				        writeIntoparserLogFile("Line " + std::to_string(_localctx.line) + ": func_declaration : type_specifier ID LPAREN parameter_list RPAREN SEMICOLON");
 				        writeIntoparserLogFile("");
@@ -482,9 +490,16 @@ public class C8086Parser extends Parser {
 				        ((Func_declarationContext)_localctx).line =  ((Func_declarationContext)_localctx).sm->getLine();
 				        ((Func_declarationContext)_localctx).code =  ((Func_declarationContext)_localctx).t.text + " " + ((Func_declarationContext)_localctx).id->getText() + "();";
 				        
-				        // Insert function into symbol table
-				        symbolTable.Insert(((Func_declarationContext)_localctx).id->getText(), ((Func_declarationContext)_localctx).t.text);
-				        symbolTable.PrintCurrentScopeTable();
+				        // Try to insert function into symbol table
+				        // If it already exists, check if it's compatible (same return type)
+				        if (!symbolTable.Insert(((Func_declarationContext)_localctx).id->getText(), ((Func_declarationContext)_localctx).t.text)) {
+				            // Function already exists, check if types match
+				            std::string existingType = symbolTable.GetType(((Func_declarationContext)_localctx).id->getText());
+				            if (existingType != ((Func_declarationContext)_localctx).t.text) {
+				                logError(_localctx.line, "Conflicting return type for function " + ((Func_declarationContext)_localctx).id->getText());
+				            }
+				            // If types match, it's just a redeclaration which is allowed
+				        }
 				        
 				        writeIntoparserLogFile("Line " + std::to_string(_localctx.line) + ": func_declaration : type_specifier ID LPAREN RPAREN SEMICOLON");
 				        writeIntoparserLogFile("");
@@ -547,9 +562,18 @@ public class C8086Parser extends Parser {
 				setState(94);
 				((Func_definitionContext)_localctx).id = match(ID);
 
-				        // Insert function into symbol table in current (global) scope
-				        symbolTable.Insert(((Func_definitionContext)_localctx).id->getText(), ((Func_definitionContext)_localctx).t.text);
-				        symbolTable.PrintCurrentScopeTable();
+				        // Try to insert function into symbol table
+				        // If it already exists, check if it's compatible (same return type)
+				        if (!symbolTable.Insert(((Func_definitionContext)_localctx).id->getText(), ((Func_definitionContext)_localctx).t.text)) {
+				            // Function already exists, check if types match
+				            std::string existingType = symbolTable.GetType(((Func_definitionContext)_localctx).id->getText());
+				            if (existingType != ((Func_definitionContext)_localctx).t.text) {
+				                logError(((Func_definitionContext)_localctx).id->getLine(), "Conflicting return type for function " + ((Func_definitionContext)_localctx).id->getText());
+				            }
+				            // If types match, this is a definition after declaration which is allowed
+				        }
+				        // You might want to track that this function now has a definition
+				        // symbolTable.MarkAsDefined(((Func_definitionContext)_localctx).id->getText());
 				    
 				setState(96);
 				match(LPAREN);
@@ -567,7 +591,7 @@ public class C8086Parser extends Parser {
 				        ((Func_definitionContext)_localctx).line =  ((Func_definitionContext)_localctx).cs.line;
 				        ((Func_definitionContext)_localctx).code =  ((Func_definitionContext)_localctx).t.text + " " + ((Func_definitionContext)_localctx).id->getText() + "(" + ((Func_definitionContext)_localctx).pl.code + ")" + ((Func_definitionContext)_localctx).cs.code;
 				        
-				        // Exit function scope
+				        // Exit function scope (this will be handled in compound_statement)
 				        
 				        writeIntoparserLogFile("Line " + std::to_string(_localctx.line) + ": func_definition : type_specifier ID LPAREN parameter_list RPAREN compound_statement");
 				        writeIntoparserLogFile("");
@@ -584,9 +608,18 @@ public class C8086Parser extends Parser {
 				setState(104);
 				((Func_definitionContext)_localctx).id = match(ID);
 
-				        // Insert function into symbol table in current (global) scope
-				        symbolTable.Insert(((Func_definitionContext)_localctx).id->getText(), ((Func_definitionContext)_localctx).t.text);
-				        symbolTable.PrintCurrentScopeTable();
+				        // Try to insert function into symbol table
+				        // If it already exists, check if it's compatible (same return type)
+				        if (!symbolTable.Insert(((Func_definitionContext)_localctx).id->getText(), ((Func_definitionContext)_localctx).t.text)) {
+				            // Function already exists, check if types match
+				            std::string existingType = symbolTable.GetType(((Func_definitionContext)_localctx).id->getText());
+				            if (existingType != ((Func_definitionContext)_localctx).t.text) {
+				                logError(((Func_definitionContext)_localctx).id->getLine(), "Conflicting return type for function " + ((Func_definitionContext)_localctx).id->getText());
+				            }
+				            // If types match, this is a definition after declaration which is allowed
+				        }
+				        // You might want to track that this function now has a definition
+				        // symbolTable.MarkAsDefined(((Func_definitionContext)_localctx).id->getText());
 				    
 				setState(106);
 				match(LPAREN);
@@ -602,7 +635,7 @@ public class C8086Parser extends Parser {
 				        ((Func_definitionContext)_localctx).line =  ((Func_definitionContext)_localctx).cs.line;
 				        ((Func_definitionContext)_localctx).code =  ((Func_definitionContext)_localctx).t.text + " " + ((Func_definitionContext)_localctx).id->getText() + "()" + ((Func_definitionContext)_localctx).cs.code;
 				        
-				        // Exit function scope
+				        // Exit function scope (this will be handled in compound_statement)
 				        
 				        writeIntoparserLogFile("Line " + std::to_string(_localctx.line) + ": func_definition : type_specifier ID LPAREN RPAREN compound_statement");
 				        writeIntoparserLogFile("");
@@ -671,9 +704,10 @@ public class C8086Parser extends Parser {
 
 				        ((Parameter_listContext)_localctx).code =  ((Parameter_listContext)_localctx).t.text + " " + ((Parameter_listContext)_localctx).id->getText();
 				        
-				        // Insert parameter into symbol table
-				        symbolTable.Insert(((Parameter_listContext)_localctx).id->getText(), ((Parameter_listContext)_localctx).t.text);
-				        symbolTable.PrintCurrentScopeTable();
+				        // Insert parameter into symbol table - Insert returns false if already exists
+				        if (!symbolTable.Insert(((Parameter_listContext)_localctx).id->getText(), ((Parameter_listContext)_localctx).t.text)) {
+				            logError(((Parameter_listContext)_localctx).id->getLine(), "Multiple declaration of " + ((Parameter_listContext)_localctx).id->getText());
+				        }
 				        
 				        writeIntoparserLogFile("Line " + std::to_string(((Parameter_listContext)_localctx).id->getLine()) + ": parameter_list : type_specifier ID");
 				        writeIntoparserLogFile("");
@@ -724,9 +758,10 @@ public class C8086Parser extends Parser {
 
 						                  ((Parameter_listContext)_localctx).code =  ((Parameter_listContext)_localctx).pl.code + "," + ((Parameter_listContext)_localctx).t.text + " " + ((Parameter_listContext)_localctx).id->getText();
 						                  
-						                  // Insert parameter into symbol table
-						                  symbolTable.Insert(((Parameter_listContext)_localctx).id->getText(), ((Parameter_listContext)_localctx).t.text);
-						                  symbolTable.PrintCurrentScopeTable();
+						                  // Insert parameter into symbol table - Insert returns false if already exists
+						                  if (!symbolTable.Insert(((Parameter_listContext)_localctx).id->getText(), ((Parameter_listContext)_localctx).t.text)) {
+						                      logError(((Parameter_listContext)_localctx).id->getLine(), "Multiple declaration of " + ((Parameter_listContext)_localctx).id->getText());
+						                  }
 						                  
 						                  writeIntoparserLogFile("Line " + std::to_string(((Parameter_listContext)_localctx).id->getLine()) + ": parameter_list : parameter_list COMMA type_specifier ID");
 						                  writeIntoparserLogFile("");
@@ -805,8 +840,8 @@ public class C8086Parser extends Parser {
 				setState(140);
 				match(LCURL);
 
-				        // Only enter new scope if this is not immediately following a function definition
-				        // (function definitions already create their own scope)
+				        // Enter new scope for compound statement (not for function definitions)
+				        symbolTable.EnterScope();
 				    
 				setState(142);
 				((Compound_statementContext)_localctx).ss = statements(0);
@@ -838,7 +873,8 @@ public class C8086Parser extends Parser {
 				setState(146);
 				match(LCURL);
 
-				        // Only enter new scope if this is not immediately following a function definition
+				        // Enter new scope for compound statement
+				        symbolTable.EnterScope();
 				    
 				setState(148);
 				((Compound_statementContext)_localctx).rc = match(RCURL);
@@ -935,16 +971,14 @@ public class C8086Parser extends Parser {
 				                token = token.substr(0, bracketPos);
 				            }
 				            
-				            // Check for duplicate declaration in current scope
-				            if (symbolTable.Lookup(token)) {
+				            // Use Insert function - it returns false if already exists in current scope
+				            std::string typeInfo = ((Var_declarationContext)_localctx).t.text;
+				            if (isArray) typeInfo += "_ARRAY";
+				            
+				            if (!symbolTable.Insert(token, typeInfo)) {
 				                logError(_localctx.line, "Multiple declaration of " + token);
-				            } else {
-				                // For now, store array info in the type string
-				                string typeInfo = ((Var_declarationContext)_localctx).t.text;
-				                if (isArray) typeInfo += "_ARRAY";
-				                symbolTable.Insert(token, typeInfo);
 				            }
-				            symbolTable.PrintCurrentScopeTable();
+				            
 				            varNames.erase(0, pos + delimiter.length());
 				        }
 				        // Handle the last variable
@@ -954,16 +988,13 @@ public class C8086Parser extends Parser {
 				            varNames = varNames.substr(0, bracketPos);
 				        }
 				        
-				        // Check for duplicate declaration in current scope
-				        if (symbolTable.Lookup(varNames)) {
+				        // Use Insert function - it returns false if already exists in current scope
+				        std::string typeInfo = ((Var_declarationContext)_localctx).t.text;
+				        if (isArray) typeInfo += "_ARRAY";
+				        
+				        if (!symbolTable.Insert(varNames, typeInfo)) {
 				            logError(_localctx.line, "Multiple declaration of " + varNames);
-				        } else {
-				            // For now, store array info in the type string
-				            string typeInfo = ((Var_declarationContext)_localctx).t.text;
-				            if (isArray) typeInfo += "_ARRAY";
-				            symbolTable.Insert(varNames, typeInfo);
 				        }
-				        symbolTable.PrintCurrentScopeTable();
 				        
 				        writeIntoparserLogFile("Line " + std::to_string(_localctx.line) + ": var_declaration : type_specifier declaration_list SEMICOLON");
 				        writeIntoparserLogFile("");
@@ -1736,8 +1767,8 @@ public class C8086Parser extends Parser {
 				        ((VariableContext)_localctx).line =  ((VariableContext)_localctx).id->getLine();
 				        ((VariableContext)_localctx).code =  ((VariableContext)_localctx).id->getText();
 				        
-				        // Check if variable is declared
-				        if (!symbolTable.Lookup(((VariableContext)_localctx).id->getText())) {
+				        // Check if variable is declared using Lookup - returns NULL if not found
+				        if (symbolTable.Lookup(((VariableContext)_localctx).id->getText()) == NULL) {
 				            logError(_localctx.line, "Undeclared variable " + ((VariableContext)_localctx).id->getText());
 				        }
 				        
@@ -1763,8 +1794,8 @@ public class C8086Parser extends Parser {
 				        ((VariableContext)_localctx).line =  ((VariableContext)_localctx).id->getLine();
 				        ((VariableContext)_localctx).code =  ((VariableContext)_localctx).id->getText() + "[" + ((VariableContext)_localctx).e.code + "]";
 				        
-				        // Check if variable is declared
-				        if (!symbolTable.Lookup(((VariableContext)_localctx).id->getText())) {
+				        // Check if variable is declared using Lookup - returns NULL if not found
+				        if (symbolTable.Lookup(((VariableContext)_localctx).id->getText()) == NULL) {
 				            logError(_localctx.line, "Undeclared variable " + ((VariableContext)_localctx).id->getText());
 				        } else {
 				            // Check if array index is integer
@@ -1854,14 +1885,16 @@ public class C8086Parser extends Parser {
 				            varName = varName.substr(0, bracketPos);
 				        }
 				        
-				        // Check type compatibility
-				        if (symbolTable.Lookup(varName)) {
+				        // Check type compatibility using Lookup
+				        SymbolInfo* varInfo = symbolTable.Lookup(varName);
+				        if (varInfo != NULL) {
 				            std::string varType = getVariableType(varName);
 				            bool isArray = isArrayVariable(varName);
 				            
 				            // Check if trying to assign to whole array
 				            if (isArray && bracketPos == std::string::npos) {
 				                logError(_localctx.line, "Type mismatch, " + varName + " is an array");
+				                writeIntoparserLogFile("Error: Type mismatch, " + varName + " is an array");
 				            }
 				            // Check type compatibility for assignment
 				            else if (varType == "int" && ((ExpressionContext)_localctx).le.code.find('.') != std::string::npos) {
@@ -2406,7 +2439,8 @@ public class C8086Parser extends Parser {
 				        if (!args.empty()) {
 				            // Simple check - if argument is just a variable name, check if it's an array
 				            if (args.find('(') == std::string::npos && args.find('[') == std::string::npos) {
-				                if (symbolTable.Lookup(args) && isArrayVariable(args)) {
+				                SymbolInfo* argInfo = symbolTable.Lookup(args);
+				                if (argInfo != NULL && isArrayVariable(args)) {
 				                    logError(_localctx.line, "Type mismatch, " + args + " is an array");
 				                }
 				            }

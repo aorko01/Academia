@@ -141,13 +141,20 @@ unit
 
 func_declaration
 	returns[std::string code, int line]:
-	t = type_specifier id = ID LPAREN parameter_list RPAREN sm = SEMICOLON {
+	t = type_specifier id = ID LPAREN pl = parameter_list RPAREN sm = SEMICOLON {
         $line = $sm->getLine();
-        $code = $t.text + " " + $id->getText() + "();";
+        $code = $t.text + " " + $id->getText() + "(" + $pl.text + ");";
         
-        // Insert function into symbol table
-        symbolTable.Insert($id->getText(), $t.text);
-        symbolTable.PrintCurrentScopeTable();
+        // Try to insert function into symbol table
+        // If it already exists, check if it's compatible (same return type)
+        if (!symbolTable.Insert($id->getText(), $t.text)) {
+            // Function already exists, check if types match
+            std::string existingType = symbolTable.GetType($id->getText());
+            if (existingType != $t.text) {
+                logError($line, "Conflicting return type for function " + $id->getText());
+            }
+            // If types match, it's just a redeclaration which is allowed
+        }
         
         writeIntoparserLogFile("Line " + std::to_string($line) + ": func_declaration : type_specifier ID LPAREN parameter_list RPAREN SEMICOLON");
         writeIntoparserLogFile("");
@@ -158,9 +165,16 @@ func_declaration
         $line = $sm->getLine();
         $code = $t.text + " " + $id->getText() + "();";
         
-        // Insert function into symbol table
-        symbolTable.Insert($id->getText(), $t.text);
-        symbolTable.PrintCurrentScopeTable();
+        // Try to insert function into symbol table
+        // If it already exists, check if it's compatible (same return type)
+        if (!symbolTable.Insert($id->getText(), $t.text)) {
+            // Function already exists, check if types match
+            std::string existingType = symbolTable.GetType($id->getText());
+            if (existingType != $t.text) {
+                logError($line, "Conflicting return type for function " + $id->getText());
+            }
+            // If types match, it's just a redeclaration which is allowed
+        }
         
         writeIntoparserLogFile("Line " + std::to_string($line) + ": func_declaration : type_specifier ID LPAREN RPAREN SEMICOLON");
         writeIntoparserLogFile("");
@@ -171,9 +185,18 @@ func_declaration
 func_definition
 	returns[std::string code, int line]:
 	t = type_specifier id = ID {
-        // Insert function into symbol table in current (global) scope
-        symbolTable.Insert($id->getText(), $t.text);
-        symbolTable.PrintCurrentScopeTable();
+        // Try to insert function into symbol table
+        // If it already exists, check if it's compatible (same return type)
+        if (!symbolTable.Insert($id->getText(), $t.text)) {
+            // Function already exists, check if types match
+            std::string existingType = symbolTable.GetType($id->getText());
+            if (existingType != $t.text) {
+                logError($id->getLine(), "Conflicting return type for function " + $id->getText());
+            }
+            // If types match, this is a definition after declaration which is allowed
+        }
+        // You might want to track that this function now has a definition
+        // symbolTable.MarkAsDefined($id->getText());
     } LPAREN {
         // Enter new scope for function parameters and body
         symbolTable.EnterScope();
@@ -181,7 +204,7 @@ func_definition
         $line = $cs.line;
         $code = $t.text + " " + $id->getText() + "(" + $pl.code + ")" + $cs.code;
         
-        // Exit function scope
+        // Exit function scope (this will be handled in compound_statement)
         
         writeIntoparserLogFile("Line " + std::to_string($line) + ": func_definition : type_specifier ID LPAREN parameter_list RPAREN compound_statement");
         writeIntoparserLogFile("");
@@ -189,9 +212,18 @@ func_definition
         writeIntoparserLogFile("");
     }
 	| t = type_specifier id = ID {
-        // Insert function into symbol table in current (global) scope
-        symbolTable.Insert($id->getText(), $t.text);
-        symbolTable.PrintCurrentScopeTable();
+        // Try to insert function into symbol table
+        // If it already exists, check if it's compatible (same return type)
+        if (!symbolTable.Insert($id->getText(), $t.text)) {
+            // Function already exists, check if types match
+            std::string existingType = symbolTable.GetType($id->getText());
+            if (existingType != $t.text) {
+                logError($id->getLine(), "Conflicting return type for function " + $id->getText());
+            }
+            // If types match, this is a definition after declaration which is allowed
+        }
+        // You might want to track that this function now has a definition
+        // symbolTable.MarkAsDefined($id->getText());
     } LPAREN {
         // Enter new scope for function body
         symbolTable.EnterScope();
@@ -199,7 +231,7 @@ func_definition
         $line = $cs.line;
         $code = $t.text + " " + $id->getText() + "()" + $cs.code;
         
-        // Exit function scope
+        // Exit function scope (this will be handled in compound_statement)
         
         writeIntoparserLogFile("Line " + std::to_string($line) + ": func_definition : type_specifier ID LPAREN RPAREN compound_statement");
         writeIntoparserLogFile("");
@@ -212,9 +244,10 @@ parameter_list
 	pl = parameter_list COMMA t = type_specifier id = ID {
         $code = $pl.code + "," + $t.text + " " + $id->getText();
         
-        // Insert parameter into symbol table
-        symbolTable.Insert($id->getText(), $t.text);
-        symbolTable.PrintCurrentScopeTable();
+        // Insert parameter into symbol table - Insert returns false if already exists
+        if (!symbolTable.Insert($id->getText(), $t.text)) {
+            logError($id->getLine(), "Multiple declaration of " + $id->getText());
+        }
         
         writeIntoparserLogFile("Line " + std::to_string($id->getLine()) + ": parameter_list : parameter_list COMMA type_specifier ID");
         writeIntoparserLogFile("");
@@ -231,9 +264,10 @@ parameter_list
 	| t = type_specifier id = ID {
         $code = $t.text + " " + $id->getText();
         
-        // Insert parameter into symbol table
-        symbolTable.Insert($id->getText(), $t.text);
-        symbolTable.PrintCurrentScopeTable();
+        // Insert parameter into symbol table - Insert returns false if already exists
+        if (!symbolTable.Insert($id->getText(), $t.text)) {
+            logError($id->getLine(), "Multiple declaration of " + $id->getText());
+        }
         
         writeIntoparserLogFile("Line " + std::to_string($id->getLine()) + ": parameter_list : type_specifier ID");
         writeIntoparserLogFile("");
@@ -251,8 +285,8 @@ parameter_list
 compound_statement
 	returns[std::string code, int line]:
 	LCURL {
-        // Only enter new scope if this is not immediately following a function definition
-        // (function definitions already create their own scope)
+        // Enter new scope for compound statement (not for function definitions)
+        symbolTable.EnterScope();
     } ss = statements rc = RCURL {
         $line = $rc->getLine();
         $code = "{\n" + $ss.code + "\n}";
@@ -272,7 +306,8 @@ compound_statement
         symbolTable.ExitScope();
     }
 	| LCURL {
-        // Only enter new scope if this is not immediately following a function definition
+        // Enter new scope for compound statement
+        symbolTable.EnterScope();
     } rc = RCURL {
         $line = $rc->getLine();
         $code = "{\n}";
@@ -292,7 +327,6 @@ compound_statement
         symbolTable.ExitScope();
     };
 
-// Updated var_declaration rule with duplicate variable checking
 var_declaration
 	returns[std::string code, int line]:
 	t = type_specifier dl = declaration_list sm = SEMICOLON {
@@ -315,16 +349,14 @@ var_declaration
                 token = token.substr(0, bracketPos);
             }
             
-            // Check for duplicate declaration in current scope
-            if (symbolTable.Lookup(token)) {
+            // Use Insert function - it returns false if already exists in current scope
+            std::string typeInfo = $t.text;
+            if (isArray) typeInfo += "_ARRAY";
+            
+            if (!symbolTable.Insert(token, typeInfo)) {
                 logError($line, "Multiple declaration of " + token);
-            } else {
-                // For now, store array info in the type string
-                string typeInfo = $t.text;
-                if (isArray) typeInfo += "_ARRAY";
-                symbolTable.Insert(token, typeInfo);
             }
-            symbolTable.PrintCurrentScopeTable();
+            
             varNames.erase(0, pos + delimiter.length());
         }
         // Handle the last variable
@@ -334,16 +366,13 @@ var_declaration
             varNames = varNames.substr(0, bracketPos);
         }
         
-        // Check for duplicate declaration in current scope
-        if (symbolTable.Lookup(varNames)) {
+        // Use Insert function - it returns false if already exists in current scope
+        std::string typeInfo = $t.text;
+        if (isArray) typeInfo += "_ARRAY";
+        
+        if (!symbolTable.Insert(varNames, typeInfo)) {
             logError($line, "Multiple declaration of " + varNames);
-        } else {
-            // For now, store array info in the type string
-            string typeInfo = $t.text;
-            if (isArray) typeInfo += "_ARRAY";
-            symbolTable.Insert(varNames, typeInfo);
         }
-        symbolTable.PrintCurrentScopeTable();
         
         writeIntoparserLogFile("Line " + std::to_string($line) + ": var_declaration : type_specifier declaration_list SEMICOLON");
         writeIntoparserLogFile("");
@@ -547,8 +576,8 @@ variable
         $line = $id->getLine();
         $code = $id->getText();
         
-        // Check if variable is declared
-        if (!symbolTable.Lookup($id->getText())) {
+        // Check if variable is declared using Lookup - returns NULL if not found
+        if (symbolTable.Lookup($id->getText()) == NULL) {
             logError($line, "Undeclared variable " + $id->getText());
         }
         
@@ -561,8 +590,8 @@ variable
         $line = $id->getLine();
         $code = $id->getText() + "[" + $e.code + "]";
         
-        // Check if variable is declared
-        if (!symbolTable.Lookup($id->getText())) {
+        // Check if variable is declared using Lookup - returns NULL if not found
+        if (symbolTable.Lookup($id->getText()) == NULL) {
             logError($line, "Undeclared variable " + $id->getText());
         } else {
             // Check if array index is integer
@@ -598,14 +627,16 @@ expression
             varName = varName.substr(0, bracketPos);
         }
         
-        // Check type compatibility
-        if (symbolTable.Lookup(varName)) {
+        // Check type compatibility using Lookup
+        SymbolInfo* varInfo = symbolTable.Lookup(varName);
+        if (varInfo != NULL) {
             std::string varType = getVariableType(varName);
             bool isArray = isArrayVariable(varName);
             
             // Check if trying to assign to whole array
             if (isArray && bracketPos == std::string::npos) {
                 logError($line, "Type mismatch, " + varName + " is an array");
+                writeIntoparserLogFile("Error: Type mismatch, " + varName + " is an array");
             }
             // Check type compatibility for assignment
             else if (varType == "int" && $le.code.find('.') != std::string::npos) {
@@ -749,7 +780,8 @@ factor
         if (!args.empty()) {
             // Simple check - if argument is just a variable name, check if it's an array
             if (args.find('(') == std::string::npos && args.find('[') == std::string::npos) {
-                if (symbolTable.Lookup(args) && isArrayVariable(args)) {
+                SymbolInfo* argInfo = symbolTable.Lookup(args);
+                if (argInfo != NULL && isArrayVariable(args)) {
                     logError($line, "Type mismatch, " + args + " is an array");
                 }
             }

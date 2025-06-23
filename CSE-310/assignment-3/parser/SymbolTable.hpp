@@ -19,10 +19,10 @@ private:
 public:
     // Constructor declaration
     SymbolTable(int bucketSize, int hashChoice = 1);
-    
+
     // Destructor declaration
     ~SymbolTable();
-    
+
     // Method declarations only
     void EnterScope();
     void ExitScope();
@@ -36,6 +36,8 @@ public:
     int getTotalScopesCreated() const;
     int getHashChoice() const;
     string getHashFunctionName() const;
+    // Returns the type of a symbol by name, or empty string if not found
+    std::string GetType(const std::string &name);
 };
 
 #endif
