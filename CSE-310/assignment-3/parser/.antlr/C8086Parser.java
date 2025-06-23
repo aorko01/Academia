@@ -139,6 +139,40 @@ public class C8086Parser extends Parser {
 	        errorFile.flush();
 	    }
 
+	    void logError(const int line, const std::string& message) {
+	        std::string errorMsg = "Error at line " + std::to_string(line) + ": " + message;
+	        writeIntoErrorFile(errorMsg + "\n");
+	        writeIntoparserLogFile(errorMsg + "\n");
+	        syntaxErrorCount++;
+	    }
+
+	    bool isIntegerExpression(const std::string& expr) {
+	        // Check if expression contains decimal point
+	        return expr.find('.') == std::string::npos;
+	    }
+
+	    std::string getVariableType(const std::string& varName) {
+	        SymbolInfo* info = symbolTable.Lookup(varName);
+	        if (info) {
+	            std::string type = info->get_type();
+	            // Remove _ARRAY suffix if present
+	            if (type.length() > 6 && type.substr(type.length()-6) == "_ARRAY") {
+	                return type.substr(0, type.length()-6);
+	            }
+	            return type;
+	        }
+	        return "";
+	    }
+
+	    bool isArrayVariable(const std::string& varName) {
+	        SymbolInfo* info = symbolTable.Lookup(varName);
+	        if (info) {
+	            std::string type = info->get_type();
+	            return type.length() > 6 && type.substr(type.length()-6) == "_ARRAY";
+	        }
+	        return false;
+	    }
+
 	public C8086Parser(TokenStream input) {
 		super(input);
 		_interp = new ParserATNSimulator(this,_ATN,_decisionToDFA,_sharedContextCache);
@@ -885,7 +919,7 @@ public class C8086Parser extends Parser {
 				        ((Var_declarationContext)_localctx).line =  ((Var_declarationContext)_localctx).sm->getLine();
 				        ((Var_declarationContext)_localctx).code =  ((Var_declarationContext)_localctx).t.text + " " + ((Var_declarationContext)_localctx).dl.names + ";";
 				        
-				        // Insert variables into symbol table
+				        // Insert variables into symbol table with duplicate checking
 				        std::string varNames = ((Var_declarationContext)_localctx).dl.names;
 				        std::string delimiter = ",";
 				        size_t pos = 0;
@@ -896,19 +930,39 @@ public class C8086Parser extends Parser {
 				            token = varNames.substr(0, pos);
 				            // Remove array brackets for symbol table insertion
 				            size_t bracketPos = token.find('[');
-				            if (bracketPos != std::string::npos) {
+				            bool isArray = (bracketPos != std::string::npos);
+				            if (isArray) {
 				                token = token.substr(0, bracketPos);
 				            }
-				            symbolTable.Insert(token, ((Var_declarationContext)_localctx).t.text);
+				            
+				            // Check for duplicate declaration in current scope
+				            if (symbolTable.Lookup(token)) {
+				                logError(_localctx.line, "Multiple declaration of " + token);
+				            } else {
+				                // For now, store array info in the type string
+				                string typeInfo = ((Var_declarationContext)_localctx).t.text;
+				                if (isArray) typeInfo += "_ARRAY";
+				                symbolTable.Insert(token, typeInfo);
+				            }
 				            symbolTable.PrintCurrentScopeTable();
 				            varNames.erase(0, pos + delimiter.length());
 				        }
 				        // Handle the last variable
 				        size_t bracketPos = varNames.find('[');
-				        if (bracketPos != std::string::npos) {
+				        bool isArray = (bracketPos != std::string::npos);
+				        if (isArray) {
 				            varNames = varNames.substr(0, bracketPos);
 				        }
-				        symbolTable.Insert(varNames, ((Var_declarationContext)_localctx).t.text);
+				        
+				        // Check for duplicate declaration in current scope
+				        if (symbolTable.Lookup(varNames)) {
+				            logError(_localctx.line, "Multiple declaration of " + varNames);
+				        } else {
+				            // For now, store array info in the type string
+				            string typeInfo = ((Var_declarationContext)_localctx).t.text;
+				            if (isArray) typeInfo += "_ARRAY";
+				            symbolTable.Insert(varNames, typeInfo);
+				        }
 				        symbolTable.PrintCurrentScopeTable();
 				        
 				        writeIntoparserLogFile("Line " + std::to_string(_localctx.line) + ": var_declaration : type_specifier declaration_list SEMICOLON");
@@ -1681,6 +1735,12 @@ public class C8086Parser extends Parser {
 
 				        ((VariableContext)_localctx).line =  ((VariableContext)_localctx).id->getLine();
 				        ((VariableContext)_localctx).code =  ((VariableContext)_localctx).id->getText();
+				        
+				        // Check if variable is declared
+				        if (!symbolTable.Lookup(((VariableContext)_localctx).id->getText())) {
+				            logError(_localctx.line, "Undeclared variable " + ((VariableContext)_localctx).id->getText());
+				        }
+				        
 				        writeIntoparserLogFile("Line " + std::to_string(_localctx.line) + ": variable : ID");
 				        writeIntoparserLogFile("");
 				        writeIntoparserLogFile(_localctx.code);
@@ -1702,6 +1762,17 @@ public class C8086Parser extends Parser {
 
 				        ((VariableContext)_localctx).line =  ((VariableContext)_localctx).id->getLine();
 				        ((VariableContext)_localctx).code =  ((VariableContext)_localctx).id->getText() + "[" + ((VariableContext)_localctx).e.code + "]";
+				        
+				        // Check if variable is declared
+				        if (!symbolTable.Lookup(((VariableContext)_localctx).id->getText())) {
+				            logError(_localctx.line, "Undeclared variable " + ((VariableContext)_localctx).id->getText());
+				        } else {
+				            // Check if array index is integer
+				            if (!isIntegerExpression(((VariableContext)_localctx).e.code)) {
+				                logError(_localctx.line, "Expression inside third brackets not an integer");
+				            }
+				        }
+				        
 				        writeIntoparserLogFile("Line " + std::to_string(_localctx.line) + ": variable : ID LTHIRD expression RTHIRD");
 				        writeIntoparserLogFile("");
 				        writeIntoparserLogFile(_localctx.code);
@@ -1775,6 +1846,29 @@ public class C8086Parser extends Parser {
 
 				        ((ExpressionContext)_localctx).line =  ((ExpressionContext)_localctx).v.line;
 				        ((ExpressionContext)_localctx).code =  ((ExpressionContext)_localctx).v.code + "=" + ((ExpressionContext)_localctx).le.code;
+				        
+				        // Extract variable name from variable code
+				        std::string varName = ((ExpressionContext)_localctx).v.code;
+				        size_t bracketPos = varName.find('[');
+				        if (bracketPos != std::string::npos) {
+				            varName = varName.substr(0, bracketPos);
+				        }
+				        
+				        // Check type compatibility
+				        if (symbolTable.Lookup(varName)) {
+				            std::string varType = getVariableType(varName);
+				            bool isArray = isArrayVariable(varName);
+				            
+				            // Check if trying to assign to whole array
+				            if (isArray && bracketPos == std::string::npos) {
+				                logError(_localctx.line, "Type mismatch, " + varName + " is an array");
+				            }
+				            // Check type compatibility for assignment
+				            else if (varType == "int" && ((ExpressionContext)_localctx).le.code.find('.') != std::string::npos) {
+				                logError(_localctx.line, "Type Mismatch");
+				            }
+				        }
+				        
 				        writeIntoparserLogFile("Line " + std::to_string(_localctx.line) + ": expression : variable ASSIGNOP logic_expression");
 				        writeIntoparserLogFile("");
 				        writeIntoparserLogFile(_localctx.code);
@@ -2108,6 +2202,14 @@ public class C8086Parser extends Parser {
 
 					                  ((TermContext)_localctx).line =  ((TermContext)_localctx).t.line;
 					                  ((TermContext)_localctx).code =  ((TermContext)_localctx).t.code + ((TermContext)_localctx).op->getText() + ((TermContext)_localctx).ue.code;
+					                  
+					                  // Check for modulus operator with non-integer operands
+					                  if (((TermContext)_localctx).op->getText() == "%") {
+					                      if (!isIntegerExpression(((TermContext)_localctx).t.code) || !isIntegerExpression(((TermContext)_localctx).ue.code)) {
+					                          logError(_localctx.line, "Non-Integer operand on modulus operator");
+					                      }
+					                  }
+					                  
 					                  writeIntoparserLogFile("Line " + std::to_string(_localctx.line) + ": term : term MULOP unary_expression");
 					                  writeIntoparserLogFile("");
 					                  writeIntoparserLogFile(_localctx.code);
@@ -2298,6 +2400,18 @@ public class C8086Parser extends Parser {
 
 				        ((FactorContext)_localctx).line =  ((FactorContext)_localctx).id->getLine();
 				        ((FactorContext)_localctx).code =  ((FactorContext)_localctx).id->getText() + "(" + ((FactorContext)_localctx).al.code + ")";
+				        
+				        // Check function call with array argument
+				        std::string args = ((FactorContext)_localctx).al.code;
+				        if (!args.empty()) {
+				            // Simple check - if argument is just a variable name, check if it's an array
+				            if (args.find('(') == std::string::npos && args.find('[') == std::string::npos) {
+				                if (symbolTable.Lookup(args) && isArrayVariable(args)) {
+				                    logError(_localctx.line, "Type mismatch, " + args + " is an array");
+				                }
+				            }
+				        }
+				        
 				        writeIntoparserLogFile("Line " + std::to_string(_localctx.line) + ": factor : ID LPAREN argument_list RPAREN");
 				        writeIntoparserLogFile("");
 				        writeIntoparserLogFile(_localctx.code);

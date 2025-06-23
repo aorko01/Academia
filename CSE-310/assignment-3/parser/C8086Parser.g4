@@ -38,6 +38,40 @@ options {
         errorFile << message << std::endl;
         errorFile.flush();
     }
+
+    void logError(const int line, const std::string& message) {
+        std::string errorMsg = "Error at line " + std::to_string(line) + ": " + message;
+        writeIntoErrorFile(errorMsg + "\n");
+        writeIntoparserLogFile(errorMsg + "\n");
+        syntaxErrorCount++;
+    }
+
+    bool isIntegerExpression(const std::string& expr) {
+        // Check if expression contains decimal point
+        return expr.find('.') == std::string::npos;
+    }
+
+    std::string getVariableType(const std::string& varName) {
+        SymbolInfo* info = symbolTable.Lookup(varName);
+        if (info) {
+            std::string type = info->get_type();
+            // Remove _ARRAY suffix if present
+            if (type.length() > 6 && type.substr(type.length()-6) == "_ARRAY") {
+                return type.substr(0, type.length()-6);
+            }
+            return type;
+        }
+        return "";
+    }
+
+    bool isArrayVariable(const std::string& varName) {
+        SymbolInfo* info = symbolTable.Lookup(varName);
+        if (info) {
+            std::string type = info->get_type();
+            return type.length() > 6 && type.substr(type.length()-6) == "_ARRAY";
+        }
+        return false;
+    }
 }
 
 start:
@@ -258,13 +292,14 @@ compound_statement
         symbolTable.ExitScope();
     };
 
+// Updated var_declaration rule with duplicate variable checking
 var_declaration
 	returns[std::string code, int line]:
 	t = type_specifier dl = declaration_list sm = SEMICOLON {
         $line = $sm->getLine();
         $code = $t.text + " " + $dl.names + ";";
         
-        // Insert variables into symbol table
+        // Insert variables into symbol table with duplicate checking
         std::string varNames = $dl.names;
         std::string delimiter = ",";
         size_t pos = 0;
@@ -275,19 +310,39 @@ var_declaration
             token = varNames.substr(0, pos);
             // Remove array brackets for symbol table insertion
             size_t bracketPos = token.find('[');
-            if (bracketPos != std::string::npos) {
+            bool isArray = (bracketPos != std::string::npos);
+            if (isArray) {
                 token = token.substr(0, bracketPos);
             }
-            symbolTable.Insert(token, $t.text);
+            
+            // Check for duplicate declaration in current scope
+            if (symbolTable.Lookup(token)) {
+                logError($line, "Multiple declaration of " + token);
+            } else {
+                // For now, store array info in the type string
+                string typeInfo = $t.text;
+                if (isArray) typeInfo += "_ARRAY";
+                symbolTable.Insert(token, typeInfo);
+            }
             symbolTable.PrintCurrentScopeTable();
             varNames.erase(0, pos + delimiter.length());
         }
         // Handle the last variable
         size_t bracketPos = varNames.find('[');
-        if (bracketPos != std::string::npos) {
+        bool isArray = (bracketPos != std::string::npos);
+        if (isArray) {
             varNames = varNames.substr(0, bracketPos);
         }
-        symbolTable.Insert(varNames, $t.text);
+        
+        // Check for duplicate declaration in current scope
+        if (symbolTable.Lookup(varNames)) {
+            logError($line, "Multiple declaration of " + varNames);
+        } else {
+            // For now, store array info in the type string
+            string typeInfo = $t.text;
+            if (isArray) typeInfo += "_ARRAY";
+            symbolTable.Insert(varNames, typeInfo);
+        }
         symbolTable.PrintCurrentScopeTable();
         
         writeIntoparserLogFile("Line " + std::to_string($line) + ": var_declaration : type_specifier declaration_list SEMICOLON");
@@ -491,6 +546,12 @@ variable
 	id = ID {
         $line = $id->getLine();
         $code = $id->getText();
+        
+        // Check if variable is declared
+        if (!symbolTable.Lookup($id->getText())) {
+            logError($line, "Undeclared variable " + $id->getText());
+        }
+        
         writeIntoparserLogFile("Line " + std::to_string($line) + ": variable : ID");
         writeIntoparserLogFile("");
         writeIntoparserLogFile($code);
@@ -499,6 +560,17 @@ variable
 	| id = ID LTHIRD e = expression RTHIRD {
         $line = $id->getLine();
         $code = $id->getText() + "[" + $e.code + "]";
+        
+        // Check if variable is declared
+        if (!symbolTable.Lookup($id->getText())) {
+            logError($line, "Undeclared variable " + $id->getText());
+        } else {
+            // Check if array index is integer
+            if (!isIntegerExpression($e.code)) {
+                logError($line, "Expression inside third brackets not an integer");
+            }
+        }
+        
         writeIntoparserLogFile("Line " + std::to_string($line) + ": variable : ID LTHIRD expression RTHIRD");
         writeIntoparserLogFile("");
         writeIntoparserLogFile($code);
@@ -518,6 +590,29 @@ expression
 	| v = variable ASSIGNOP le = logic_expression {
         $line = $v.line;
         $code = $v.code + "=" + $le.code;
+        
+        // Extract variable name from variable code
+        std::string varName = $v.code;
+        size_t bracketPos = varName.find('[');
+        if (bracketPos != std::string::npos) {
+            varName = varName.substr(0, bracketPos);
+        }
+        
+        // Check type compatibility
+        if (symbolTable.Lookup(varName)) {
+            std::string varType = getVariableType(varName);
+            bool isArray = isArrayVariable(varName);
+            
+            // Check if trying to assign to whole array
+            if (isArray && bracketPos == std::string::npos) {
+                logError($line, "Type mismatch, " + varName + " is an array");
+            }
+            // Check type compatibility for assignment
+            else if (varType == "int" && $le.code.find('.') != std::string::npos) {
+                logError($line, "Type Mismatch");
+            }
+        }
+        
         writeIntoparserLogFile("Line " + std::to_string($line) + ": expression : variable ASSIGNOP logic_expression");
         writeIntoparserLogFile("");
         writeIntoparserLogFile($code);
@@ -594,6 +689,14 @@ term
 	| t = term op = MULOP ue = unary_expression {
         $line = $t.line;
         $code = $t.code + $op->getText() + $ue.code;
+        
+        // Check for modulus operator with non-integer operands
+        if ($op->getText() == "%") {
+            if (!isIntegerExpression($t.code) || !isIntegerExpression($ue.code)) {
+                logError($line, "Non-Integer operand on modulus operator");
+            }
+        }
+        
         writeIntoparserLogFile("Line " + std::to_string($line) + ": term : term MULOP unary_expression");
         writeIntoparserLogFile("");
         writeIntoparserLogFile($code);
@@ -640,6 +743,18 @@ factor
 	| id = ID LPAREN al = argument_list RPAREN {
         $line = $id->getLine();
         $code = $id->getText() + "(" + $al.code + ")";
+        
+        // Check function call with array argument
+        std::string args = $al.code;
+        if (!args.empty()) {
+            // Simple check - if argument is just a variable name, check if it's an array
+            if (args.find('(') == std::string::npos && args.find('[') == std::string::npos) {
+                if (symbolTable.Lookup(args) && isArrayVariable(args)) {
+                    logError($line, "Type mismatch, " + args + " is an array");
+                }
+            }
+        }
+        
         writeIntoparserLogFile("Line " + std::to_string($line) + ": factor : ID LPAREN argument_list RPAREN");
         writeIntoparserLogFile("");
         writeIntoparserLogFile($code);
